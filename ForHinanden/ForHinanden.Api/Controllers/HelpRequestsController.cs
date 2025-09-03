@@ -4,6 +4,7 @@ using ForHinanden.Api.Data;
 using ForHinanden.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace ForHinanden.Api.Controllers;
 
 [ApiController]
@@ -22,33 +23,33 @@ public class HelpRequestsController : ControllerBase
         => await _context.HelpRequests.ToListAsync();
 
     [HttpPost]
-    public async Task<ActionResult<HelpRequest>> Create(HelpRequest request)
+    public async Task<ActionResult<HelpRequest>> Create([FromBody] CreateHelpRequestDto dto)
     {
+        var request = new HelpRequest
+        {
+            Id = Guid.NewGuid(),
+            Title = dto.Title,
+            Description = dto.Description,
+            RequestedBy = dto.RequestedBy,
+            IsAccepted = false,      // default
+            AcceptedBy = null        // default
+        };
+
         _context.HelpRequests.Add(request);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetAll), new { id = request.Id }, request);
     }
 
-    [HttpPost("{id}/offer")]
-    public async Task<IActionResult> OfferHelp(Guid id, [FromBody] string offeredBy)
-    {
-        var request = await _context.HelpRequests.FindAsync(id);
-        if (request == null) return NotFound();
-        if (request.OfferedBy != null) return BadRequest("Hjælp allerede tilbudt.");
-
-        request.OfferedBy = offeredBy;
-        await _context.SaveChangesAsync();
-        return Ok(request);
-    }
-
     [HttpPost("{id}/accept")]
-    public async Task<IActionResult> AcceptHelp(Guid id)
+    public async Task<IActionResult> AcceptHelp(Guid id, [FromBody] string acceptedBy)
     {
         var request = await _context.HelpRequests.FindAsync(id);
         if (request == null) return NotFound();
-        if (string.IsNullOrEmpty(request.OfferedBy)) return BadRequest("Ingen har tilbudt hjælp endnu.");
+        if (request.IsAccepted) return BadRequest("Opgaven er allerede accepteret.");
 
         request.IsAccepted = true;
+        request.AcceptedBy = acceptedBy;
+
         await _context.SaveChangesAsync();
         return Ok(request);
     }

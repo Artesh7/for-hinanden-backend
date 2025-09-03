@@ -157,3 +157,6 @@ C:\Users\artes\OneDrive - ViaUC\7 Semester\ForHinanden\ForHinanden\ForHinanden\F
 C:\Users\artes\OneDrive - ViaUC\7 Semester\ForHinanden\ForHinanden\ForHinanden\ForHinanden.Api\obj\Debug\net9.0\ForHinan.F0040452.Up2Date
 C:\Users\artes\OneDrive - ViaUC\7 Semester\ForHinanden\ForHinanden\ForHinanden\ForHinanden.Api\obj\Debug\net9.0\ForHinanden.Api.genruntimeconfig.cache
 C:\Users\artes\OneDrive - ViaUC\7 Semester\ForHinanden\ForHinanden\ForHinanden\ForHinanden.Api\obj\Debug\net9.0\ref\ForHinanden.Api.dll
+C:\Users\artes\OneDrive - ViaUC\7 Semester\ForHinanden\ForHinanden\ForHinanden\ForHinanden.Api\bin\Debug\net9.0\Npgsql.dll
+C:\Users\artes\OneDrive - ViaUC\7 Semester\ForHinanden\ForHinanden\ForHinanden\ForHinanden.Api\bin\Debug\net9.0\Npgsql.EntityFrameworkCore.PostgreSQL.dll
+C:\Users\artes\OneDrive - ViaUC\7 Semester\ForHinanden\ForHinanden\ForHinanden\ForHinanden.Api\bin\Debug\net9.0\Microsoft.EntityFrameworkCore.InMemory.dll
