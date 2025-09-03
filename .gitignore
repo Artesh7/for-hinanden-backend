@@ -1,0 +1,23 @@
+# Databaser
+*.db
+*.db-shm
+*.db-wal
+
+# Bruger-hemmeligheder
+**/secrets.json
+
+# Build output
+bin/
+obj/
+out/
+
+# VS / Rider / VSCode
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs
+*.log
