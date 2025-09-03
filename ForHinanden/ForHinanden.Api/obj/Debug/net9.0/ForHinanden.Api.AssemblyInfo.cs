@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ForHinanden.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+958b29328e563054372047a03140dfed0ae35996")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f3245e8e336ac453aa5554521a41d561fdef5343")]
 [assembly: System.Reflection.AssemblyProductAttribute("ForHinanden.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ForHinanden.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

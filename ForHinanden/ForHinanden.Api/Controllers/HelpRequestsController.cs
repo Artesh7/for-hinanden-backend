@@ -41,16 +41,21 @@ public class HelpRequestsController : ControllerBase
     }
 
     [HttpPost("{id}/accept")]
-    public async Task<IActionResult> AcceptHelp(Guid id, [FromBody] string acceptedBy)
+    public async Task<IActionResult> AcceptHelp(Guid id, [FromBody] AcceptHelpDto body)
     {
+        if (body is null || string.IsNullOrWhiteSpace(body.AcceptedBy))
+            return BadRequest("acceptedBy er påkrævet.");
+
         var request = await _context.HelpRequests.FindAsync(id);
         if (request == null) return NotFound();
+
         if (request.IsAccepted) return BadRequest("Opgaven er allerede accepteret.");
 
         request.IsAccepted = true;
-        request.AcceptedBy = acceptedBy;
+        request.AcceptedBy = body.AcceptedBy;
 
         await _context.SaveChangesAsync();
         return Ok(request);
     }
+
 }
