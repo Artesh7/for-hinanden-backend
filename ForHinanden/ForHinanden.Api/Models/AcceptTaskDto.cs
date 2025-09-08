@@ -1,6 +1,6 @@
 ﻿namespace ForHinanden.Api.Models;
 
-public class AcceptHelpDto
+public class AcceptTaskDto
 {
     public string AcceptedBy { get; set; } = null!;
 }
