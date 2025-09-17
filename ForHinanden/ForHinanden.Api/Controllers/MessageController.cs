@@ -20,7 +20,6 @@ public class MessageController : ControllerBase
             .Where(m => m.TaskId == taskId)
             .OrderBy(m => m.SentAt)
             .ToListAsync();
-
         return Ok(messages);
     }
 
@@ -41,4 +40,24 @@ public class MessageController : ControllerBase
 
         return Created($"/api/messages/{message.Id}", message);
     }
+    
+    //et endpoint der tager sender og receiver
+    // GET: api/messages/conversation?user1=Alice&user2=Bob
+    [HttpGet("conversation")]
+    public async Task<IActionResult> GetConversation([FromQuery] string user1, [FromQuery] string user2)
+    {
+        if (string.IsNullOrWhiteSpace(user1) || string.IsNullOrWhiteSpace(user2))
+        {
+            return BadRequest("Both user1 and user2 must be provided.");
+        }
+
+        var messages = await _context.Messages
+            .Where(m => (m.Sender.ToLower() == user1.ToLower() && m.Receiver.ToLower() == user2.ToLower())
+                        || (m.Sender.ToLower() == user2.ToLower() && m.Receiver.ToLower() == user1.ToLower()))
+            .OrderBy(m => m.SentAt)
+            .ToListAsync();
+
+        return Ok(messages);
+    }
+
 }

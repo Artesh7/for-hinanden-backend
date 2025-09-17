@@ -9,7 +9,6 @@ public class Message
 
     public Guid TaskId { get; set; }
     public Task Task { get; set; } = null!; // kobling til en specifik opgave
-
     public string Sender { get; set; } = null!;  // fx brugerens navn eller Id
     public string Receiver { get; set; } = null!;
     public string Content { get; set; } = null!;
