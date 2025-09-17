@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using ForHinanden.Api.Models;
+using Microsoft.EntityFrameworkCore;
 using TaskEntity = ForHinanden.Api.Models.Task;
 
 namespace ForHinanden.Api.Data;
@@ -9,4 +10,6 @@ public class AppDbContext : DbContext
 
     // NY DbSet – brug denne i controlleren
     public DbSet<TaskEntity> Tasks => Set<TaskEntity>();
+    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
+
 }
