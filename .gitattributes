@@ -1,0 +1,16 @@
+﻿@'
+* text=auto
+
+# Bevar Windows line endings for solution/proj hvis ønsket
+*.sln    text eol=crlf
+*.csproj text eol=crlf
+
+# Kildekode normaliseres (Git håndterer lokalt efter OS)
+*.cs     text
+*.ts     text
+*.js     text
+*.json   text
+*.yml    text
+*.yaml   text
+*.md     text
+'@ | Set-Content -Encoding UTF8 .gitattributes

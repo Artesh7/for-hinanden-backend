@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\artes\\OneDrive - ViaUC\\7 Semester\\ForHinanden\\ForHinanden\\ForHinanden\\ForHinanden.Api\\ForHinanden.Api.csproj": {}
+    "C:\\Users\\artes\\Documents\\GitHub\\ForHinanden\\ForHinanden\\ForHinanden.Api\\ForHinanden.Api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\artes\\OneDrive - ViaUC\\7 Semester\\ForHinanden\\ForHinanden\\ForHinanden\\ForHinanden.Api\\ForHinanden.Api.csproj": {
+    "C:\\Users\\artes\\Documents\\GitHub\\ForHinanden\\ForHinanden\\ForHinanden.Api\\ForHinanden.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\artes\\OneDrive - ViaUC\\7 Semester\\ForHinanden\\ForHinanden\\ForHinanden\\ForHinanden.Api\\ForHinanden.Api.csproj",
+        "projectUniqueName": "C:\\Users\\artes\\Documents\\GitHub\\ForHinanden\\ForHinanden\\ForHinanden.Api\\ForHinanden.Api.csproj",
         "projectName": "ForHinanden.Api",
-        "projectPath": "C:\\Users\\artes\\OneDrive - ViaUC\\7 Semester\\ForHinanden\\ForHinanden\\ForHinanden\\ForHinanden.Api\\ForHinanden.Api.csproj",
+        "projectPath": "C:\\Users\\artes\\Documents\\GitHub\\ForHinanden\\ForHinanden\\ForHinanden.Api\\ForHinanden.Api.csproj",
         "packagesPath": "C:\\Users\\artes\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\artes\\OneDrive - ViaUC\\7 Semester\\ForHinanden\\ForHinanden\\ForHinanden\\ForHinanden.Api\\obj\\",
+        "outputPath": "C:\\Users\\artes\\Documents\\GitHub\\ForHinanden\\ForHinanden\\ForHinanden.Api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

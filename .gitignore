@@ -1,23 +1,63 @@
-# Databaser
-*.db
-*.db-shm
-*.db-wal
+﻿# ===== .NET build artefakter =====
+**/bin/
+**/obj/
+**/out/
 
-# Bruger-hemmeligheder
-**/secrets.json
+# Test & coverage
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
 
-# Build output
-bin/
-obj/
-out/
-
-# VS / Rider / VSCode
-.vscode/
-.idea/
+# IDE: Visual Studio
+.vs/
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
 
+# IDE: Rider / ReSharper
+.idea/
+*.sln.iml
+.ReSharper*/
+*_ReSharper*/
+*.DotSettings.user
+
+# Editor: VS Code (keep shared config files tracked)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# OS-specifikke filer
+.DS_Store
+Thumbs.db
+
 # Logs
 *.log
+logs/
+Logs/
+
+# Miljøfiler & secrets (behold en eksempel-fil)
+.env
+.env.*
+!.env.example
+secrets.json
+
+# AppSettings: behold shared, ignorer lokale overrides
+**/appsettings.*.Local.json
+**/appsettings.Local.json
+
+# Databaser (fx SQLite) – Postgres er ekstern
+*.db
+*.db-shm
+*.db-wal
+
+# Publish/WWW artefakter
+**/publish/
+**/wwwroot/dist/
+**/wwwroot/lib/
+
+# Docker støjfiler
+**/.docker/
