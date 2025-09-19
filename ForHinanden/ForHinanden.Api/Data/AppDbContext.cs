@@ -11,5 +11,5 @@ public class AppDbContext : DbContext
     // NY DbSet – brug denne i controlleren
     public DbSet<TaskEntity> Tasks => Set<TaskEntity>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
-
+    public DbSet<Rating> Ratings => Set<Rating>();
 }
