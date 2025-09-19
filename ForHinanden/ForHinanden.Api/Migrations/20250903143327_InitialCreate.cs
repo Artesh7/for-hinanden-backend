@@ -15,12 +15,12 @@ namespace ForHinanden.Api.Migrations
                 name: "HelpRequests",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Title = table.Column<string>(type: "TEXT", nullable: false),
-                    Description = table.Column<string>(type: "TEXT", nullable: false),
-                    RequestedBy = table.Column<string>(type: "TEXT", nullable: false),
-                    OfferedBy = table.Column<string>(type: "TEXT", nullable: true),
-                    IsAccepted = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "text", nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: false),
+                    RequestedBy = table.Column<string>(type: "text", nullable: false),
+                    AcceptedBy = table.Column<string>(type: "text", nullable: true),
+                    IsAccepted = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
