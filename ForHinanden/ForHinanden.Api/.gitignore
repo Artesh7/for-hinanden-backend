@@ -1,1 +1,12 @@
-﻿
+﻿# .NET build output
+**/bin/
+**/obj/
+
+# Rider / JetBrains
+.idea/
+# build/IDE
+**/bin/
+**/obj/
+.vs/
+.idea/
+
