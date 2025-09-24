@@ -8,8 +8,24 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    // NY DbSet – brug denne i controlleren
     public DbSet<TaskEntity> Tasks => Set<TaskEntity>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<Rating> Ratings => Set<Rating>();
+    public DbSet<Message> Messages => Set<Message>();
+    public DbSet<TaskOffer> TaskOffers => Set<TaskOffer>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Map List<string> til Postgres text[]
+        modelBuilder.Entity<TaskEntity>()
+            .Property(t => t.Categories)
+            .HasColumnType("text[]");
+
+        // Én offer pr. (TaskId, OfferedBy)
+        modelBuilder.Entity<TaskOffer>()
+            .HasIndex(o => new { o.TaskId, o.OfferedBy })
+            .IsUnique();
+    }
 }

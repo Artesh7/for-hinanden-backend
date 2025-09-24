@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ForHinanden.Api.Data;
 using ForHinanden.Api.Models;
@@ -23,15 +25,30 @@ public class MessageController : ControllerBase
         return Ok(messages);
     }
 
-    // POST: api/messages
+    // POST: api/messages (kun hvis task er accepteret, og kun mellem de to parter)
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateMessageDto dto)
     {
+        var task = await _context.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == dto.TaskId);
+        if (task is null) return NotFound("Task findes ikke.");
+
+        if (!task.IsAccepted || string.IsNullOrWhiteSpace(task.AcceptedBy))
+            return BadRequest("Du kan ikke sende beskeder før en anmodning er accepteret.");
+
+        // Kun mellem RequestedBy og AcceptedBy
+        var s = dto.Sender?.Trim();
+        var r = dto.Receiver?.Trim();
+        var req = task.RequestedBy.Trim();
+        var acc = task.AcceptedBy.Trim();
+
+        bool pairOk = (s == req && r == acc) || (s == acc && r == req);
+        if (!pairOk) return Forbid("Beskeder må kun sendes mellem task-ejer og den accepterede hjælper.");
+
         var message = new Message
         {
             TaskId = dto.TaskId,
-            Sender = dto.Sender,
-            Receiver = dto.Receiver,
+            Sender = s!,
+            Receiver = r!,
             Content = dto.Content
         };
 
@@ -40,16 +57,13 @@ public class MessageController : ControllerBase
 
         return Created($"/api/messages/{message.Id}", message);
     }
-    
-    //et endpoint der tager sender og receiver
-    // GET: api/messages/conversation?user1=Alice&user2=Bob
+
+    // GET: api/messages/conversation?user1=...&user2=...
     [HttpGet("conversation")]
     public async Task<IActionResult> GetConversation([FromQuery] string user1, [FromQuery] string user2)
     {
         if (string.IsNullOrWhiteSpace(user1) || string.IsNullOrWhiteSpace(user2))
-        {
             return BadRequest("Both user1 and user2 must be provided.");
-        }
 
         var messages = await _context.Messages
             .Where(m => (m.Sender.ToLower() == user1.ToLower() && m.Receiver.ToLower() == user2.ToLower())
@@ -59,5 +73,4 @@ public class MessageController : ControllerBase
 
         return Ok(messages);
     }
-
 }

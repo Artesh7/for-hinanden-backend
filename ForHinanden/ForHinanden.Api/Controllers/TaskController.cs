@@ -1,13 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System;
+using Microsoft.AspNetCore.Mvc;
 using ForHinanden.Api.Data;
 using ForHinanden.Api.Models;
 using Microsoft.EntityFrameworkCore;
-using TaskModel = ForHinanden.Api.Models.Task; // undgå konflikt med System.Threading.Tasks.Task
+using TaskModel = ForHinanden.Api.Models.Task;
 
 namespace ForHinanden.Api.Controllers;
 
 [ApiController]
-[Route("api/tasks")] // kun liste, opret, accept
+[Route("api/tasks")]
 public class TaskController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -17,7 +18,11 @@ public class TaskController : ControllerBase
     [HttpGet]
     public async System.Threading.Tasks.Task<IActionResult> GetAll()
     {
-        var items = await _context.Tasks.AsNoTracking().ToListAsync();
+        var items = await _context.Tasks
+            .AsNoTracking()
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+
         return Ok(items);
     }
 
@@ -31,20 +36,23 @@ public class TaskController : ControllerBase
             Title = dto.Title,
             Description = dto.Description,
             RequestedBy = dto.RequestedBy,
+            City = dto.City,
+            Priority = dto.Priority,
+            Categories = dto.Categories ?? new(),
             AcceptedBy = null,
-            IsAccepted = false
+            IsAccepted = false,
+            CreatedAt = DateTime.UtcNow
         };
 
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
 
-        // Vi har ingen GetById → returnér 201 + Location
         return Created($"/api/tasks/{task.Id}", task);
     }
 
-    // POST /api/tasks/{id}/accept
+    // (Beholdt for bagudkompatibilitet, men brug hellere /offers/{offerId}/accept)
     [HttpPost("{id:guid}/accept")]
-    public async System.Threading.Tasks.Task<IActionResult> Accept(Guid id, [FromBody] AcceptTaskDto body)
+    public async System.Threading.Tasks.Task<IActionResult> AcceptLegacy(Guid id, [FromBody] AcceptTaskDto body)
     {
         if (body is null || string.IsNullOrWhiteSpace(body.AcceptedBy))
             return BadRequest("acceptedBy er påkrævet.");
@@ -54,6 +62,7 @@ public class TaskController : ControllerBase
 
         if (task.IsAccepted) return BadRequest("Opgaven er allerede accepteret.");
 
+        // Markér task som accepteret, uden offer-kontekst (legacy)
         task.IsAccepted = true;
         task.AcceptedBy = body.AcceptedBy.Trim();
 

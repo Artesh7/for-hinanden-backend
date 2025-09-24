@@ -1,4 +1,6 @@
-﻿namespace ForHinanden.Api.Models;
+﻿using System;
+
+namespace ForHinanden.Api.Models;
 
 public class CreateMessageDto
 {
