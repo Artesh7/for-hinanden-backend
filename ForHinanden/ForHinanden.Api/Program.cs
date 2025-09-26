@@ -1,14 +1,19 @@
-using System;
 using ForHinanden.Api.Data;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http.Json;   // 👈 vigtig for Configure<JsonOptions>
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers & Swagger
 builder.Services.AddControllers();
+
+// Global JSON-konfiguration (enums som strings)
+builder.Services.Configure<JsonOptions>(o =>
+{
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -17,8 +22,7 @@ var connStr = Environment.GetEnvironmentVariable("DATABASE_URL")
               ?? builder.Configuration.GetConnectionString("DefaultConnection")
               ?? throw new InvalidOperationException("DATABASE_URL/DefaultConnection mangler.");
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connStr));
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connStr));
 
 var app = builder.Build();
 
@@ -29,12 +33,18 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// --- Swagger i Prod også, så du kan teste online ---
+// --- Swagger (også i prod) ---
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.UseCors(x => x
+    .AllowAnyOrigin()
+    .AllowAnyMethod()
+    .AllowAnyHeader());
+
 app.UseHttpsRedirection();
 app.UseAuthorization();
+
 app.MapControllers();
 
 // Lyt på Render's PORT (fallback 5010 lokalt)

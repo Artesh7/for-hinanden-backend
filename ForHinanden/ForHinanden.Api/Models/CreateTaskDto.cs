@@ -11,4 +11,7 @@ public class CreateTaskDto
     public string City { get; set; } = null!;        // "by"
     public TaskPriority Priority { get; set; }       // snart/haster/fleksibel
     public List<string> Categories { get; set; } = new(); // fx ["havearbejde","dyr"]
+    
+    // Forventet varighed
+    public TaskDuration Duration { get; set; }
 }

@@ -39,6 +39,7 @@ public class TaskController : ControllerBase
             City = dto.City,
             Priority = dto.Priority,
             Categories = dto.Categories ?? new(),
+            Duration = dto.Duration,
             AcceptedBy = null,
             IsAccepted = false,
             CreatedAt = DateTime.UtcNow

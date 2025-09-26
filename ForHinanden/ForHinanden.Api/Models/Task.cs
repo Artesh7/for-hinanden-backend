@@ -30,6 +30,9 @@ public class Task
 
     // Ny: hvornår opgaven blev oprettet (server-sat)
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Ny: forventet varighed
+    public TaskDuration Duration { get; set; }
 
     // Navigation
     public ICollection<TaskOffer> Offers { get; set; } = new List<TaskOffer>();
