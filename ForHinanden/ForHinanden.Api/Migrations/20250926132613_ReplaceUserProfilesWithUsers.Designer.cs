@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using ForHinanden.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ForHinanden.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250926132613_ReplaceUserProfilesWithUsers")]
+    partial class ReplaceUserProfilesWithUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -163,8 +166,9 @@ namespace ForHinanden.Api.Migrations
 
             modelBuilder.Entity("ForHinanden.Api.Models.User", b =>
                 {
-                    b.Property<string>("DeviceId")
-                        .HasColumnType("text");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
 
                     b.Property<string>("City")
                         .IsRequired()
@@ -181,7 +185,7 @@ namespace ForHinanden.Api.Migrations
                     b.Property<string>("ProfilePictureUrl")
                         .HasColumnType("text");
 
-                    b.HasKey("DeviceId");
+                    b.HasKey("Id");
 
                     b.ToTable("Users");
                 });

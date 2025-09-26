@@ -9,7 +9,7 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<TaskEntity> Tasks => Set<TaskEntity>();
-    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
+    public DbSet<User> Users => Set<User>();           // ⬅️ User med deviceId som nøgle
     public DbSet<Rating> Ratings => Set<Rating>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<TaskOffer> TaskOffers => Set<TaskOffer>();

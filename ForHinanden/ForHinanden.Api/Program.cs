@@ -1,23 +1,32 @@
 using ForHinanden.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Http.Json;   // 👈 vigtig for Configure<JsonOptions>
+using Microsoft.AspNetCore.Http.Json;
+// +++
+using Microsoft.AspNetCore.Http.Features; // hvis du vil skrue på upload-størrelse
+// +++
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers & Swagger
 builder.Services.AddControllers();
 
-// Global JSON-konfiguration (enums som strings)
+// Global JSON (enums som strings)
 builder.Services.Configure<JsonOptions>(o =>
 {
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
+// (Valgfrit) tillad op til 10 MB uploads
+builder.Services.Configure<FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = 10 * 1024 * 1024;
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// --- DB: Postgres via ENV (DATABASE_URL) ---
+// --- DB ---
 var connStr = Environment.GetEnvironmentVariable("DATABASE_URL")
               ?? builder.Configuration.GetConnectionString("DefaultConnection")
               ?? throw new InvalidOperationException("DATABASE_URL/DefaultConnection mangler.");
@@ -33,9 +42,13 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// --- Swagger (også i prod) ---
+// Swagger
 app.UseSwagger();
 app.UseSwaggerUI();
+
+// +++ Servér /wwwroot (billeder mm.)
+app.UseStaticFiles();
+// +++
 
 app.UseCors(x => x
     .AllowAnyOrigin()
@@ -47,7 +60,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Lyt på Render's PORT (fallback 5010 lokalt)
+// Lyt på Render's PORT
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5010";
 app.Urls.Add($"http://0.0.0.0:{port}");
 
