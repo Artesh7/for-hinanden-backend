@@ -4,6 +4,10 @@ using ForHinanden.Api.Data;
 using ForHinanden.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using TaskModel = ForHinanden.Api.Models.Task;
+// +++
+using Microsoft.AspNetCore.SignalR;
+using ForHinanden.Api.Hubs;
+// +++
 
 namespace ForHinanden.Api.Controllers;
 
@@ -12,7 +16,14 @@ namespace ForHinanden.Api.Controllers;
 public class TaskController : ControllerBase
 {
     private readonly AppDbContext _context;
-    public TaskController(AppDbContext context) => _context = context;
+    // +++
+    private readonly IHubContext<NotificationsHub> _hub;
+    public TaskController(AppDbContext context, IHubContext<NotificationsHub> hub)
+    {
+        _context = context;
+        _hub = hub;
+    }
+    // +++
 
     // GET /api/tasks
     [HttpGet]
@@ -48,10 +59,26 @@ public class TaskController : ControllerBase
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
 
+        // +++ Send notifikation til ALLE forbundne klienter
+        var notification = new TaskCreatedNotification
+        {
+            Id = task.Id,
+            Title = task.Title,
+            City = task.City,
+            Priority = task.Priority,
+            Categories = task.Categories,
+            Duration = task.Duration,
+            RequestedBy = task.RequestedBy,
+            CreatedAt = task.CreatedAt
+        };
+
+        await _hub.Clients.All.SendAsync("taskCreated", notification);
+        // +++
+
         return Created($"/api/tasks/{task.Id}", task);
     }
 
-    // (Beholdt for bagudkompatibilitet, men brug hellere /offers/{offerId}/accept)
+    // (Legacy accept)
     [HttpPost("{id:guid}/accept")]
     public async System.Threading.Tasks.Task<IActionResult> AcceptLegacy(Guid id, [FromBody] AcceptTaskDto body)
     {
@@ -63,7 +90,6 @@ public class TaskController : ControllerBase
 
         if (task.IsAccepted) return BadRequest("Opgaven er allerede accepteret.");
 
-        // Markér task som accepteret, uden offer-kontekst (legacy)
         task.IsAccepted = true;
         task.AcceptedBy = body.AcceptedBy.Trim();
 

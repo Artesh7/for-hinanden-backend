@@ -2,8 +2,9 @@ using ForHinanden.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.Http.Features;
 // +++
-using Microsoft.AspNetCore.Http.Features; // hvis du vil skrue på upload-størrelse
+using ForHinanden.Api.Hubs; // SignalR hub
 // +++
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +34,10 @@ var connStr = Environment.GetEnvironmentVariable("DATABASE_URL")
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connStr));
 
+// +++ SignalR real-time +++
+builder.Services.AddSignalR();
+// +++
+
 var app = builder.Build();
 
 // --- Migrér DB på opstart ---
@@ -46,9 +51,8 @@ using (var scope = app.Services.CreateScope())
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// +++ Servér /wwwroot (billeder mm.)
+// Servér /wwwroot (billeder mm.)
 app.UseStaticFiles();
-// +++
 
 app.UseCors(x => x
     .AllowAnyOrigin()
@@ -59,6 +63,10 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// +++ Map SignalR hub (WebSocket endpoint) +++
+app.MapHub<NotificationsHub>("/hubs/notifications");
+// +++
 
 // Lyt på Render's PORT
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5010";
