@@ -1,39 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ForHinanden.Api.Models;
 
-[Table("HelpRequests")]
 public class Task
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; }
 
-    public string Title { get; set; } = null!;
-    public string Description { get; set; } = null!;
+    public string Title { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string RequestedBy { get; set; } = "";
 
-    // Den der har oprettet opgaven (bruger-id som string)
-    public string RequestedBy { get; set; } = null!;
+    public Guid CityId { get; set; }
+    public City City { get; set; } = default!;
 
-    // Ny: by (city)
-    public string City { get; set; } = null!;
+    public Guid PriorityOptionId { get; set; }
+    public PriorityOption PriorityOption { get; set; } = default!;
 
-    // Ny: prioritet
-    public TaskPriority Priority { get; set; }
+    public Guid DurationOptionId { get; set; }
+    public DurationOption DurationOption { get; set; } = default!;
 
-    // Ny: flere kategorier – gemmes som Postgres text[] via Npgsql (List<string>)
-    public List<string> Categories { get; set; } = new();
-
-    // Accept-information
-    public string? AcceptedBy { get; set; } = null;
-    public bool IsAccepted { get; set; } = false;
-
-    // Ny: hvornår opgaven blev oprettet (server-sat)
+    public bool IsAccepted { get; set; }
+    public string? AcceptedBy { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
-    // Ny: forventet varighed
-    public TaskDuration Duration { get; set; }
 
-    // Navigation
-    public ICollection<TaskOffer> Offers { get; set; } = new List<TaskOffer>();
+    public ICollection<TaskCategory> TaskCategories { get; set; } = new List<TaskCategory>();
 }

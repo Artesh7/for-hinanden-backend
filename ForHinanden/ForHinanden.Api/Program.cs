@@ -43,8 +43,10 @@ var app = builder.Build();
 // --- Migrér DB på opstart ---
 using (var scope = app.Services.CreateScope())
 {
+    var services = scope.ServiceProvider;
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+    await SeedData.EnsureSeededAsync(services);
 }
 
 // Swagger

@@ -62,14 +62,17 @@ public class UsersController : ControllerBase
         return Ok(user);
     }
 
-    // POST /api/users/get  (hent bruger via body – for at undgå id i URL)
-    [HttpPost("get")]
-    public async Task<IActionResult> GetByDeviceId([FromBody] DeleteUserPhotoDto body)
+    // GET /api/users/{deviceId}
+    [HttpGet("{deviceId}")]
+    public async Task<IActionResult> GetByDeviceId(string deviceId)
     {
-        if (string.IsNullOrWhiteSpace(body.DeviceId))
+        if (string.IsNullOrWhiteSpace(deviceId))
             return BadRequest("DeviceId is required.");
 
-        var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.DeviceId == body.DeviceId);
+        var user = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.DeviceId == deviceId);
+
         return user is null ? NotFound() : Ok(user);
     }
 
@@ -132,7 +135,7 @@ public class UsersController : ControllerBase
     }
 
     // POST /api/users/photo/delete  (slet profilbillede via body med deviceId)
-    [HttpPost("photo/delete")]
+    [HttpDelete("photo")]
     public async Task<IActionResult> DeletePhoto([FromBody] DeleteUserPhotoDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.DeviceId))

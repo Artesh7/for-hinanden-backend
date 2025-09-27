@@ -1,17 +1,17 @@
-﻿using System.Collections.Generic;
-using ForHinanden.Api.Models;
+﻿using System;
+using System.Collections.Generic;
 
 namespace ForHinanden.Api.Models;
 
-public class CreateTaskDto
+public sealed class CreateTaskDto
 {
-    public string Title { get; set; } = null!;
-    public string Description { get; set; } = null!;
-    public string RequestedBy { get; set; } = null!; // bruger-id
-    public string City { get; set; } = null!;        // "by"
-    public TaskPriority Priority { get; set; }       // snart/haster/fleksibel
-    public List<string> Categories { get; set; } = new(); // fx ["havearbejde","dyr"]
-    
-    // Forventet varighed
-    public TaskDuration Duration { get; set; }
+    public string Title { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string RequestedBy { get; set; } = "";
+
+    public Guid CityId { get; set; }                  // 👈 city as GUID
+    public Guid PriorityOptionId { get; set; }        // GUID (active option)
+    public Guid DurationOptionId { get; set; }        // GUID (active option)
+
+    public List<Guid> CategoryIds { get; set; } = new();  // 👈 categories as GUIDs
 }

@@ -38,7 +38,6 @@ public class TaskOffersController : ControllerBase
         }
         catch (DbUpdateException)
         {
-            // Unikhed på (TaskId, OfferedBy) ramte – returner 409
             return Conflict("Du har allerede anmodet om at hjælpe på denne task.");
         }
 
@@ -98,7 +97,6 @@ public class TaskOffersController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        // 👇 Navngiv felter unikt (ikke to gange "Id" i samme anonymtype)
         return Ok(new
         {
             TaskId = task.Id,
@@ -107,7 +105,6 @@ public class TaskOffersController : ControllerBase
             OfferStatus = offer.Status
         });
     }
-
 }
 
 // Ekstra endpoint: liste over alle offers på alle tasks for en bestemt ejer
@@ -122,12 +119,25 @@ public class OffersForOwnerController : ControllerBase
     [HttpGet("{ownerUserId}")]
     public async Task<IActionResult> GetAllForOwner(string ownerUserId)
     {
+        ownerUserId = (ownerUserId ?? string.Empty).Trim();
+
         var items = await _context.TaskOffers
+            // Join offers ↔ tasks (with city + categories)
             .Join(
-                _context.Tasks,
+                _context.Tasks
+                    .Include(t => t.City)
+                    .Include(t => t.TaskCategories)
+                    .ThenInclude(tc => tc.Category),
                 o => o.TaskId,
                 t => t.Id,
                 (o, t) => new { o, t }
+            )
+            // Join tasks ↔ priority options (GUID FK)
+            .Join(
+                _context.PriorityOptions.AsNoTracking(),
+                x => x.t.PriorityOptionId,
+                p => p.Id,
+                (x, p) => new { x.o, x.t, priority = p }
             )
             .Where(x => x.t.RequestedBy.ToLower() == ownerUserId.ToLower())
             .OrderByDescending(x => x.t.CreatedAt)
@@ -136,9 +146,11 @@ public class OffersForOwnerController : ControllerBase
             {
                 TaskId = x.t.Id,
                 x.t.Title,
-                x.t.City,
-                x.t.Priority,
-                x.t.Categories,
+                City = new { id = x.t.CityId, name = x.t.City.Name },
+                Priority = new { id = x.priority.Id, name = x.priority.Name },
+                Categories = x.t.TaskCategories
+                    .Select(tc => new { id = tc.CategoryId, name = tc.Category.Name })
+                    .ToList(),
                 x.t.IsAccepted,
                 x.t.AcceptedBy,
                 Offer = new
