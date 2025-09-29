@@ -19,16 +19,12 @@ public static class SeedData
         await EnsureCityAsync(db, "Vejle");
         await EnsureCityAsync(db, "Horsens");
 
-        // ---- Categories (by name) ----
-        await EnsureCategoryAsync(db, "Havearbejde");
-        await EnsureCategoryAsync(db, "Dyr");
-
-        // ---- Priority options (manual, by name) ----
+        // ---- PRIORITY options ----
         await EnsurePriorityOptionAsync(db, "Snart");
         await EnsurePriorityOptionAsync(db, "Haster");
         await EnsurePriorityOptionAsync(db, "Fleksibel");
 
-        // ---- Duration options (manual, by name) ----
+        // ---- DURATION options ----
         await EnsureDurationOptionAsync(db, "30 min");
         await EnsureDurationOptionAsync(db, "1 time");
         await EnsureDurationOptionAsync(db, "2 timer");
@@ -36,9 +32,28 @@ public static class SeedData
         await EnsureDurationOptionAsync(db, "4 timer");
         await EnsureDurationOptionAsync(db, "5+ timer");
 
+        // ---- CATEGORIES ----
+        // 1) Rename gamle navne til de nye (bevarer relationer)
+        await RenameCategoryIfExistsAsync(db, from: "Havearbejde", to: "Have & udendørs 🌱");
+        await RenameCategoryIfExistsAsync(db, from: "Dyr",          to: "Dyr & kæledyr 🐶");
+
+        // 2) Sørg for at alle de nye kategorier findes
+        string[] desiredCategories =
+        {
+            "Praktisk hjælp i hjemmet 🏠",
+            "Have & udendørs 🌱",
+            "Flytning & transport 🚚",
+            "Dyr & kæledyr 🐶",
+            "Sundhed & omsorg ❤️",
+            "Socialt & fællesskab 🤝",
+            "Andet … ✨"
+        };
+        foreach (var name in desiredCategories)
+            await EnsureCategoryAsync(db, name);
+
         await db.SaveChangesAsync();
 
-        // ---- Backfill CityId on existing tasks to a safe default (Vejle) ----
+        // ---- Backfill FK defaults på ældre tasks (bevarer din eksisterende logik) ----
         var defaultCityId = await db.Cities
             .Where(c => c.Name.ToLower() == "vejle")
             .Select(c => c.Id)
@@ -54,7 +69,6 @@ WHERE ""CityId"" IS NULL
 ", defaultCityId);
         }
 
-        // Backfill FK defaults (only if you want a non-null default everywhere)
         var defaultPriorityId = await db.PriorityOptions
             .Where(p => p.IsActive)
             .OrderBy(p => p.Name)
@@ -88,7 +102,8 @@ WHERE ""DurationOptionId"" IS NULL
         }
     }
 
-    // Helpers — compare by TRIM + case-insensitive name
+    // === Helpers ===
+
     private static async Task EnsureCityAsync(AppDbContext db, string name)
     {
         var n = name.Trim();
@@ -115,5 +130,33 @@ WHERE ""DurationOptionId"" IS NULL
         var n = name.Trim();
         var exists = await db.DurationOptions.AnyAsync(d => d.Name.ToLower() == n.ToLower());
         if (!exists) db.DurationOptions.Add(new DurationOption { Name = n, IsActive = true });
+    }
+
+    /// <summary>
+    /// Omdøb en eksisterende kategori til et nyt navn. Hvis mål-navnet allerede findes,
+    /// re-mapper vi TaskCategories fra den gamle til den eksisterende og sletter den gamle.
+    /// </summary>
+    private static async Task RenameCategoryIfExistsAsync(AppDbContext db, string from, string to)
+    {
+        var old = await db.Categories.FirstOrDefaultAsync(c => c.Name.ToLower() == from.Trim().ToLower());
+        if (old is null) return;
+
+        var target = await db.Categories.FirstOrDefaultAsync(c => c.Name.ToLower() == to.Trim().ToLower());
+        if (target is null)
+        {
+            old.Name = to.Trim();
+            await db.SaveChangesAsync();
+            return;
+        }
+
+        // Mål findes allerede -> remap alle TaskCategories og slet den gamle
+        await db.Database.ExecuteSqlRawAsync(@"
+UPDATE ""TaskCategories""
+SET ""CategoryId"" = {0}
+WHERE ""CategoryId"" = {1};
+", target.Id, old.Id);
+
+        db.Categories.Remove(old);
+        await db.SaveChangesAsync();
     }
 }
