@@ -7,6 +7,8 @@ using ForHinanden.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using CloudinaryDotNet;              // <-- Cloudinary
+using CloudinaryDotNet.Actions;      // <-- Cloudinary
 
 namespace ForHinanden.Api.Controllers;
 
@@ -77,11 +79,14 @@ public class UsersController : ControllerBase
     }
 
     // POST /api/users/photo  (upload/erstat profilbillede – deviceId + file i form-data)
+    // Nu: uploader til Cloudinary i stedet for lokal disk.
     [HttpPost("photo")]
     [Consumes("multipart/form-data")]
     [RequestFormLimits(MultipartBodyLengthLimit = 10_000_000)]
     [RequestSizeLimit(10_000_000)]
-    public async Task<IActionResult> UploadPhoto([FromForm] UploadUserPhotoForm form)
+    public async Task<IActionResult> UploadPhoto(
+        [FromForm] UploadUserPhotoForm form,
+        [FromServices] Cloudinary cloudinary) // <-- injiceret fra Program.cs
     {
         if (form is null || string.IsNullOrWhiteSpace(form.deviceId))
             return BadRequest("deviceId is required.");
@@ -98,45 +103,37 @@ public class UsersController : ControllerBase
         if (!allowed.Contains(contentType))
             return BadRequest("Only JPG, PNG or WEBP allowed.");
 
-        var ext = contentType switch
+        // Upload til Cloudinary
+        await using var stream = file.OpenReadStream();
+        var uploadParams = new ImageUploadParams
         {
-            "image/jpeg" or "image/jpg" => ".jpg",
-            "image/png" => ".png",
-            "image/webp" => ".webp",
-            _ => ".bin"
+            File = new FileDescription(file.FileName, stream),
+            Folder = "for-hinanden/users", // valgfri mappe i Cloudinary
+            UseFilename = true,
+            UniqueFilename = true,
+            Overwrite = false
         };
 
-        var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        var uploadDir = Path.Combine(webRoot, "uploads", "users");
-        Directory.CreateDirectory(uploadDir);
+        var result = await cloudinary.UploadAsync(uploadParams);
 
-        // Slet tidligere fil hvis den er lokalt gemt under /uploads/users/
-        if (!string.IsNullOrWhiteSpace(user.ProfilePictureUrl) &&
-            user.ProfilePictureUrl!.StartsWith("/uploads/users/", StringComparison.OrdinalIgnoreCase))
-        {
-            var oldPath = Path.Combine(webRoot, user.ProfilePictureUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-            if (System.IO.File.Exists(oldPath))
-                System.IO.File.Delete(oldPath);
-        }
+        if (result.StatusCode != System.Net.HttpStatusCode.OK || result.SecureUrl == null)
+            return StatusCode(500, $"Cloudinary upload failed ({result.StatusCode}).");
 
-        var fileName = $"{user.DeviceId}-{DateTime.UtcNow:yyyyMMddHHmmssfff}{ext}";
-        var fullPath = Path.Combine(uploadDir, fileName);
-
-        await using (var stream = new FileStream(fullPath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        var publicUrl = $"/uploads/users/{fileName}";
-        user.ProfilePictureUrl = publicUrl;
+        // Gem fuld Cloudinary URL i DB
+        user.ProfilePictureUrl = result.SecureUrl.ToString();
         await _context.SaveChangesAsync();
 
-        return Ok(new { url = publicUrl });
+        return Ok(new { url = user.ProfilePictureUrl });
     }
 
-    // POST /api/users/photo/delete  (slet profilbillede via body med deviceId)
+    // DELETE /api/users/photo  (slet profilbillede)
+    // Understøtter:
+    //  - Cloudinary URL: forsøger at slette via public_id
+    //  - Legacy lokal fil: sletter fra wwwroot/uploads/users
     [HttpDelete("photo")]
-    public async Task<IActionResult> DeletePhoto([FromBody] DeleteUserPhotoDto dto)
+    public async Task<IActionResult> DeletePhoto(
+        [FromBody] DeleteUserPhotoDto dto,
+        [FromServices] Cloudinary cloudinary)
     {
         if (string.IsNullOrWhiteSpace(dto.DeviceId))
             return BadRequest("DeviceId is required.");
@@ -144,17 +141,77 @@ public class UsersController : ControllerBase
         var user = await _context.Users.FindAsync(dto.DeviceId);
         if (user is null) return NotFound("User not found.");
 
-        var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        if (!string.IsNullOrWhiteSpace(user.ProfilePictureUrl) &&
-            user.ProfilePictureUrl!.StartsWith("/uploads/users/", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(user.ProfilePictureUrl))
         {
-            var oldPath = Path.Combine(webRoot, user.ProfilePictureUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-            if (System.IO.File.Exists(oldPath))
-                System.IO.File.Delete(oldPath);
+            var url = user.ProfilePictureUrl!.Trim();
+
+            // 1) Hvis det er Cloudinary, forsøg at slette via public_id
+            if (url.Contains("res.cloudinary.com", StringComparison.OrdinalIgnoreCase))
+            {
+                var publicId = TryExtractCloudinaryPublicId(url);
+                if (!string.IsNullOrWhiteSpace(publicId))
+                {
+                    try
+                    {
+                        var del = await cloudinary.DestroyAsync(new DeletionParams(publicId)
+                        {
+                            ResourceType = ResourceType.Image
+                        });
+                        // del.Result kan være "ok" / "not found" osv. – vi ignorerer fejl her.
+                    }
+                    catch
+                    {
+                        // Ignorer slettefejl – vi rydder uanset i DB.
+                    }
+                }
+            }
+            // 2) Legacy lokal sti: /uploads/users/...
+            else if (url.StartsWith("/uploads/users/", StringComparison.OrdinalIgnoreCase))
+            {
+                var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var oldPath = Path.Combine(webRoot, url.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(oldPath))
+                {
+                    try { System.IO.File.Delete(oldPath); } catch { /* ignore */ }
+                }
+            }
         }
 
         user.ProfilePictureUrl = null;
         await _context.SaveChangesAsync();
         return NoContent();
     }
+
+    // Hjælper: udtræk Cloudinary public_id fra en SecureUrl
+    private static string? TryExtractCloudinaryPublicId(string fullUrl)
+    {
+        try
+        {
+            var uri = new Uri(fullUrl);
+            // typisk: /<resType>/upload/v1695922334/for-hinanden/users/filnavn.jpg
+            var parts = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+            var uploadIdx = parts.FindIndex(p => string.Equals(p, "upload", StringComparison.OrdinalIgnoreCase));
+            if (uploadIdx < 0 || uploadIdx + 1 >= parts.Count) return null;
+
+            var after = parts.Skip(uploadIdx + 1).ToList();
+            if (!after.Any()) return null;
+
+            // drop evt. versionsled som "v1695922334"
+            if (after[0].Length > 1 && after[0][0] == 'v' && long.TryParse(after[0].Substring(1), out _))
+                after = after.Skip(1).ToList();
+
+            if (!after.Any()) return null;
+
+            var last = after[^1];
+            var nameNoExt = Path.GetFileNameWithoutExtension(last);
+            var path = string.Join("/", after.Take(after.Count - 1).Concat(new[] { nameNoExt }));
+            return path; // fx "for-hinanden/users/filnavn"
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
+ 

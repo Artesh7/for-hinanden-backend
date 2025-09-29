@@ -3,9 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Http.Features;
-// +++
 using ForHinanden.Api.Hubs; // SignalR hub
-// +++
+using CloudinaryDotNet;      // <-- Cloudinary
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +37,19 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connStr
 builder.Services.AddSignalR();
 // +++
 
+// --- Cloudinary ---
+// Bruger standard env var "CLOUDINARY_URL" i formatet:
+// cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>
+builder.Services.AddSingleton(sp =>
+{
+    var url = Environment.GetEnvironmentVariable("CLOUDINARY_URL");
+    if (string.IsNullOrWhiteSpace(url))
+        throw new InvalidOperationException("CLOUDINARY_URL er ikke konfigureret.");
+    var cld = new Cloudinary(url);
+    cld.Api.Secure = true;
+    return cld;
+});
+
 var app = builder.Build();
 
 // --- Migrér DB på opstart ---
@@ -53,7 +65,8 @@ using (var scope = app.Services.CreateScope())
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// Servér /wwwroot (billeder mm.)
+// Servér /wwwroot (billeder mm.) - ikke længere nødvendig for profilbilleder,
+// men fint at beholde hvis du har andre statiske filer.
 app.UseStaticFiles();
 
 app.UseCors(x => x
