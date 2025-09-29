@@ -1,19 +1,22 @@
 using ForHinanden.Api.Data;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Http.Json;
+using ForHinanden.Api.Hubs;               // SignalR hub
 using Microsoft.AspNetCore.Http.Features;
-using ForHinanden.Api.Hubs; // SignalR hub
-using CloudinaryDotNet;      // <-- Cloudinary
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using CloudinaryDotNet;                   // Cloudinary
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers & Swagger
+// ---------------- Controllers & Swagger ----------------
 builder.Services.AddControllers();
 
-// Global JSON (enums som strings)
+// Global JSON (camelCase + enums som strings)
 builder.Services.Configure<JsonOptions>(o =>
 {
+    o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    o.SerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
@@ -26,18 +29,18 @@ builder.Services.Configure<FormOptions>(o =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// --- DB ---
-var connStr = Environment.GetEnvironmentVariable("DATABASE_URL")
-              ?? builder.Configuration.GetConnectionString("DefaultConnection")
-              ?? throw new InvalidOperationException("DATABASE_URL/DefaultConnection mangler.");
+// ---------------- Database ----------------
+var connStr =
+    Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("DATABASE_URL/DefaultConnection mangler.");
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connStr));
 
-// +++ SignalR real-time +++
+// ---------------- SignalR ----------------
 builder.Services.AddSignalR();
-// +++
 
-// --- Cloudinary ---
+// ---------------- Cloudinary ----------------
 // Bruger standard env var "CLOUDINARY_URL" i formatet:
 // cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>
 builder.Services.AddSingleton(sp =>
@@ -50,23 +53,22 @@ builder.Services.AddSingleton(sp =>
     return cld;
 });
 
+// ---------------- Build app ----------------
 var app = builder.Build();
 
-// --- Migrér DB på opstart ---
+// Migrér DB + seed ved opstart
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var db = services.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
     await SeedData.EnsureSeededAsync(services);
 }
 
-// Swagger
+// ---------------- Middleware ----------------
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// Servér /wwwroot (billeder mm.) - ikke længere nødvendig for profilbilleder,
-// men fint at beholde hvis du har andre statiske filer.
 app.UseStaticFiles();
 
 app.UseCors(x => x
@@ -75,15 +77,15 @@ app.UseCors(x => x
     .AllowAnyHeader());
 
 app.UseHttpsRedirection();
+
 app.UseAuthorization();
 
 app.MapControllers();
 
-// +++ Map SignalR hub (WebSocket endpoint) +++
+// SignalR hub endpoint
 app.MapHub<NotificationsHub>("/hubs/notifications");
-// +++
 
-// Lyt på Render's PORT
+// ---------------- Hosting (Render) ----------------
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5010";
 app.Urls.Add($"http://0.0.0.0:{port}");
 
