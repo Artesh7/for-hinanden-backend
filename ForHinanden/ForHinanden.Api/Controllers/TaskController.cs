@@ -92,6 +92,18 @@ public class TaskController : ControllerBase
 
         return Ok(new { priorities, durations, cities, categories });
     }
+    
+    
+    // GET /api/tasks/{id}
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetTask(Guid id)
+    {
+        var task = await _context.Tasks
+            .Include(t => t.TaskCategories)
+            .FirstOrDefaultAsync(t => t.Id == id);
+        if (task == null) return NotFound();
+        return Ok(task);
+    }
 
     // POST /api/tasks
     [HttpPost]
