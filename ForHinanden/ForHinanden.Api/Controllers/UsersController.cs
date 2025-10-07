@@ -4,11 +4,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using ForHinanden.Api.Data;
 using ForHinanden.Api.Models;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CloudinaryDotNet;              // <-- Cloudinary
-using CloudinaryDotNet.Actions;      // <-- Cloudinary
+using CloudinaryDotNet;              // Cloudinary
+using CloudinaryDotNet.Actions;      // Cloudinary
 
 namespace ForHinanden.Api.Controllers;
 
@@ -26,6 +26,9 @@ public class UsersController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.DeviceId))
             return BadRequest("DeviceId is required.");
 
+        if (dto.Bio is not null && dto.Bio.Length > 500)
+            return BadRequest("Bio must be ≤ 500 characters.");
+
         var exists = await _context.Users.AnyAsync(u => u.DeviceId == dto.DeviceId);
         if (exists) return Conflict("User with this deviceId already exists.");
 
@@ -35,12 +38,15 @@ public class UsersController : ControllerBase
             FirstName = dto.FirstName,
             LastName  = dto.LastName,
             City      = dto.City,
-            ProfilePictureUrl = dto.ProfilePictureUrl // kan være null
+            ProfilePictureUrl = dto.ProfilePictureUrl, // kan være null
+            Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim()
         };
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
-        return Created($"/api/users/by-deviceId?deviceId={Uri.EscapeDataString(user.DeviceId)}", user);
+
+        // Returner Location = GET /api/users/{deviceId}
+        return CreatedAtAction(nameof(GetByDeviceId), new { deviceId = user.DeviceId }, user);
     }
 
     // PUT /api/users  (opdater eksisterende; bruger deviceId fra body)
@@ -50,6 +56,9 @@ public class UsersController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.DeviceId))
             return BadRequest("DeviceId is required.");
 
+        if (dto.Bio is not null && dto.Bio.Length > 500)
+            return BadRequest("Bio must be ≤ 500 characters.");
+
         var user = await _context.Users.FindAsync(dto.DeviceId);
         if (user is null) return NotFound("User not found.");
 
@@ -57,11 +66,35 @@ public class UsersController : ControllerBase
         user.LastName  = dto.LastName;
         user.City      = dto.City;
 
+        // null = ingen ændring, "" = sæt til null
         if (dto.ProfilePictureUrl != null)
             user.ProfilePictureUrl = string.IsNullOrWhiteSpace(dto.ProfilePictureUrl) ? null : dto.ProfilePictureUrl;
 
+        // null = ingen ændring, "" = sæt til null
+        if (dto.Bio != null)
+            user.Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim();
+
         await _context.SaveChangesAsync();
         return Ok(user);
+    }
+
+    // PATCH /api/users/bio  (opdater KUN bio)
+    [HttpPatch("bio")]
+    public async Task<IActionResult> UpdateBio([FromBody] UpdateUserBioDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.DeviceId))
+            return BadRequest("DeviceId is required.");
+
+        if (dto.Bio is not null && dto.Bio.Length > 500)
+            return BadRequest("Bio must be ≤ 500 characters.");
+
+        var user = await _context.Users.FindAsync(dto.DeviceId);
+        if (user is null) return NotFound("User not found.");
+
+        user.Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim();
+        await _context.SaveChangesAsync();
+
+        return Ok(new { deviceId = user.DeviceId, bio = user.Bio });
     }
 
     // GET /api/users/{deviceId}
@@ -79,14 +112,14 @@ public class UsersController : ControllerBase
     }
 
     // POST /api/users/photo  (upload/erstat profilbillede – deviceId + file i form-data)
-    // Nu: uploader til Cloudinary i stedet for lokal disk.
+    // Uploader til Cloudinary.
     [HttpPost("photo")]
     [Consumes("multipart/form-data")]
     [RequestFormLimits(MultipartBodyLengthLimit = 10_000_000)]
     [RequestSizeLimit(10_000_000)]
     public async Task<IActionResult> UploadPhoto(
         [FromForm] UploadUserPhotoForm form,
-        [FromServices] Cloudinary cloudinary) // <-- injiceret fra Program.cs
+        [FromServices] Cloudinary cloudinary)
     {
         if (form is null || string.IsNullOrWhiteSpace(form.deviceId))
             return BadRequest("deviceId is required.");
@@ -99,11 +132,10 @@ public class UsersController : ControllerBase
             return BadRequest("No file received.");
 
         var allowed = new[] { "image/jpeg", "image/jpg", "image/png", "image/webp" };
-        var contentType = file.ContentType.ToLower();
+        var contentType = (file.ContentType ?? "").ToLowerInvariant();
         if (!allowed.Contains(contentType))
             return BadRequest("Only JPG, PNG or WEBP allowed.");
 
-        // Upload til Cloudinary
         await using var stream = file.OpenReadStream();
         var uploadParams = new ImageUploadParams
         {
@@ -119,7 +151,6 @@ public class UsersController : ControllerBase
         if (result.StatusCode != System.Net.HttpStatusCode.OK || result.SecureUrl == null)
             return StatusCode(500, $"Cloudinary upload failed ({result.StatusCode}).");
 
-        // Gem fuld Cloudinary URL i DB
         user.ProfilePictureUrl = result.SecureUrl.ToString();
         await _context.SaveChangesAsync();
 
@@ -145,7 +176,7 @@ public class UsersController : ControllerBase
         {
             var url = user.ProfilePictureUrl!.Trim();
 
-            // 1) Hvis det er Cloudinary, forsøg at slette via public_id
+            // 1) Cloudinary: forsøg at slette via public_id
             if (url.Contains("res.cloudinary.com", StringComparison.OrdinalIgnoreCase))
             {
                 var publicId = TryExtractCloudinaryPublicId(url);
@@ -157,7 +188,7 @@ public class UsersController : ControllerBase
                         {
                             ResourceType = ResourceType.Image
                         });
-                        // del.Result kan være "ok" / "not found" osv. – vi ignorerer fejl her.
+                        // del.Result kan være "ok" / "not found" osv. – fejl ignoreres.
                     }
                     catch
                     {
@@ -214,4 +245,3 @@ public class UsersController : ControllerBase
         }
     }
 }
- 
