@@ -40,6 +40,29 @@ public class TaskOffersController : ControllerBase
         {
             return Conflict("Du har allerede anmodet om at hjælpe på denne task.");
         }
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);
+        if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
+        {
+            var fcmMessage = new FirebaseAdmin.Messaging.Message
+            {
+                Token = user.DeviceId, // DeviceId now used as FCM token
+                Notification = new FirebaseAdmin.Messaging.Notification
+                {
+                    Title = "Din opgave er accepteret!",
+                    Body = $"Bruger {offer.OfferedBy} har accepteret din opgave '{task.Title}'."
+                }
+            };
+
+            try
+            {
+                await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the API call
+                Console.WriteLine($"FCM notification failed: {ex.Message}");
+            }
+        }
 
         return Created($"/api/tasks/{taskId}/offers/{offer.Id}", offer);
     }
