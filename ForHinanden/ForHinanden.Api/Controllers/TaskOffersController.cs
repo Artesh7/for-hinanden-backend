@@ -48,8 +48,8 @@ public class TaskOffersController : ControllerBase
                 Token = user.DeviceId, // DeviceId now used as FCM token
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
-                    Title = "Din opgave er accepteret!",
-                    Body = $"Bruger {user.FirstName} {user.LastName} har tilbudt hjælp til din opgave '{task.Title}'."
+                    Title = $"{user.FirstName} {user.LastName} har tilbudt hjælp til din opgave '{task.Title}'.",
+                    Body = $"{offer.Message}"
                 }
             };
 
