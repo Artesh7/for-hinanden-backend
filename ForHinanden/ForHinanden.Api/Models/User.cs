@@ -6,9 +6,6 @@ namespace ForHinanden.Api.Models;
 [Table("Users")]
 public class User
 {
-    /// <summary>
-    /// Client-genereret enhedsid – bruges som primærnøgle.
-    /// </summary>
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public string DeviceId { get; set; } = null!;
@@ -26,4 +23,10 @@ public class User
     /// Valgfri URL til profilbillede (fx /uploads/users/xxx.jpg eller ekstern URL).
     /// </summary>
     public string? ProfilePictureUrl { get; set; }
+
+    /// <summary>
+    /// Valgfri bio/om mig-tekst. Max 500 tegn.
+    /// </summary>
+    [MaxLength(500)]
+    public string? Bio { get; set; }
 }
