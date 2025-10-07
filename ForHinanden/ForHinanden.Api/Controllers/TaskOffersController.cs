@@ -49,7 +49,7 @@ public class TaskOffersController : ControllerBase
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
                     Title = "Din opgave er accepteret!",
-                    Body = $"Bruger {user.FirstName} {user.LastName} har accepteret din opgave '{task.Title}'."
+                    Body = $"Bruger {user.FirstName} {user.LastName} har tilbudt hjælp til din opgave '{task.Title}'."
                 }
             };
 
