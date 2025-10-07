@@ -26,6 +26,9 @@ public class UsersController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.DeviceId))
             return BadRequest("DeviceId is required.");
 
+        if (dto.Bio is not null && dto.Bio.Length > 500)
+            return BadRequest("Bio must be ≤ 500 characters.");
+
         var exists = await _context.Users.AnyAsync(u => u.DeviceId == dto.DeviceId);
         if (exists) return Conflict("User with this deviceId already exists.");
 
@@ -35,12 +38,15 @@ public class UsersController : ControllerBase
             FirstName = dto.FirstName,
             LastName  = dto.LastName,
             City      = dto.City,
-            ProfilePictureUrl = dto.ProfilePictureUrl // kan være null
+            ProfilePictureUrl = dto.ProfilePictureUrl, // kan være null
+            Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim()
         };
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
-        return Created($"/api/users/by-deviceId?deviceId={Uri.EscapeDataString(user.DeviceId)}", user);
+
+        // Returner Location = GET /api/users/{deviceId}
+        return CreatedAtAction(nameof(GetByDeviceId), new { deviceId = user.DeviceId }, user);
     }
 
     // PUT /api/users  (opdater eksisterende; bruger deviceId fra body)
@@ -50,6 +56,9 @@ public class UsersController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.DeviceId))
             return BadRequest("DeviceId is required.");
 
+        if (dto.Bio is not null && dto.Bio.Length > 500)
+            return BadRequest("Bio must be ≤ 500 characters.");
+
         var user = await _context.Users.FindAsync(dto.DeviceId);
         if (user is null) return NotFound("User not found.");
 
@@ -57,11 +66,35 @@ public class UsersController : ControllerBase
         user.LastName  = dto.LastName;
         user.City      = dto.City;
 
+        // null = ingen ændring, "" = sæt til null
         if (dto.ProfilePictureUrl != null)
             user.ProfilePictureUrl = string.IsNullOrWhiteSpace(dto.ProfilePictureUrl) ? null : dto.ProfilePictureUrl;
 
+        // null = ingen ændring, "" = sæt til null
+        if (dto.Bio != null)
+            user.Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim();
+
         await _context.SaveChangesAsync();
         return Ok(user);
+    }
+
+    // PATCH /api/users/bio  (opdater KUN bio)
+    [HttpPatch("bio")]
+    public async Task<IActionResult> UpdateBio([FromBody] UpdateUserBioDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.DeviceId))
+            return BadRequest("DeviceId is required.");
+
+        if (dto.Bio is not null && dto.Bio.Length > 500)
+            return BadRequest("Bio must be ≤ 500 characters.");
+
+        var user = await _context.Users.FindAsync(dto.DeviceId);
+        if (user is null) return NotFound("User not found.");
+
+        user.Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim();
+        await _context.SaveChangesAsync();
+
+        return Ok(new { deviceId = user.DeviceId, bio = user.Bio });
     }
 
     // GET /api/users/{deviceId}
@@ -214,4 +247,4 @@ public class UsersController : ControllerBase
         }
     }
 }
- //t
+ 
