@@ -6,13 +6,15 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CloudinaryDotNet;                   // Cloudinary
+using FirebaseAdmin;                      // Firebase Admin SDK
+using Google.Apis.Auth.OAuth2;            // Google Credentials
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------------- Controllers & Swagger ----------------
 builder.Services.AddControllers();
 
-// Global JSON (camelCase + enums som strings)
+// Global JSON (camelCase + enums as strings)
 builder.Services.Configure<JsonOptions>(o =>
 {
     o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -20,7 +22,7 @@ builder.Services.Configure<JsonOptions>(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
-// (Valgfrit) tillad op til 10 MB uploads
+// Allow up to 10 MB uploads (optional)
 builder.Services.Configure<FormOptions>(o =>
 {
     o.MultipartBodyLengthLimit = 10 * 1024 * 1024;
@@ -41,8 +43,6 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connStr
 builder.Services.AddSignalR();
 
 // ---------------- Cloudinary ----------------
-// Bruger standard env var "CLOUDINARY_URL" i formatet:
-// cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>
 builder.Services.AddSingleton(sp =>
 {
     var url = Environment.GetEnvironmentVariable("CLOUDINARY_URL");
@@ -53,10 +53,21 @@ builder.Services.AddSingleton(sp =>
     return cld;
 });
 
+// ---------------- Firebase Admin SDK ----------------// Read the env var
+var firebaseKeyJson = Environment.GetEnvironmentVariable("FIREBASE_KEY_JSON");
+if (string.IsNullOrWhiteSpace(firebaseKeyJson))
+    throw new InvalidOperationException("FIREBASE_KEY_JSON is not set.");
+
+// Initialize Firebase
+FirebaseApp.Create(new AppOptions()
+{
+    Credential = GoogleCredential.FromJson(firebaseKeyJson)
+});
+
 // ---------------- Build app ----------------
 var app = builder.Build();
 
-// Migrér DB + seed ved opstart
+// Migrate DB + seed on startup
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -77,7 +88,6 @@ app.UseCors(x => x
     .AllowAnyHeader());
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
 
 app.MapControllers();
