@@ -127,7 +127,7 @@ public class TaskOffersController : ControllerBase
         await _context.SaveChangesAsync();
 
         // --- Send Firebase notification to task creator ---
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.AcceptedBy);
         if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
         {
             var fcmMessage = new FirebaseAdmin.Messaging.Message
