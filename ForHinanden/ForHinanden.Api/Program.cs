@@ -44,7 +44,7 @@ builder.Services.AddSignalR();
 
 // ---------------- Cloudinary ----------------
 builder.Services.AddSingleton(sp =>
-{
+{                                       
     var url = Environment.GetEnvironmentVariable("CLOUDINARY_URL");
     if (string.IsNullOrWhiteSpace(url))
         throw new InvalidOperationException("CLOUDINARY_URL er ikke konfigureret.");
