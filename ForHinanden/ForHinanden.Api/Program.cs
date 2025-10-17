@@ -79,7 +79,7 @@ using (var scope = app.Services.CreateScope())
 // ---------------- Middleware ----------------
 app.UseSwagger();
 app.UseSwaggerUI();
-
+app.UseRouting();
 app.UseStaticFiles();
 
 app.UseCors(x => x
