@@ -1,15 +1,16 @@
-﻿using System.Text.Json.Serialization;
+﻿using System;
+using System.Text.Json.Serialization;
 
-namespace ForHinanden.Api.Models;
+namespace ForHinanden.Api.Models.Dtos;
 
 public class FeedbackDto
 {
     [JsonPropertyName("deviceId")]
     public string DeviceId { get; set; } = "";
 
-    [JsonPropertyName("feedback")]
-    public string Feedback { get; set; } = "";
+    [JsonPropertyName("rating")]
+    public int Rating { get; set; }
 
-    [JsonPropertyName("timestamp")]
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    [JsonPropertyName("feedback")]
+    public string? Feedback { get; set; }
 }
