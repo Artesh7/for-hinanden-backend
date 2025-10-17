@@ -1,5 +1,7 @@
-﻿namespace ForHinanden.Api.Models;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
+namespace ForHinanden.Api.Models;
+[Table("Feedback")]
 public class Feedback
 {
     public int Id { get; set; }
