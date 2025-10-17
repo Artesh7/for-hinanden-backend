@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ForHinanden.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251017184542_AddAppRatingToFeedback")]
-    partial class AddAppRatingToFeedback
+    [Migration("20251017190019_Fix_Feedback_Schema")]
+    partial class Fix_Feedback_Schema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
