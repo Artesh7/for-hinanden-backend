@@ -10,15 +10,16 @@ public class FeedbackDto
 
     [JsonPropertyName("rating")]
     public int Rating { get; set; }
-    
+
     [JsonPropertyName("emojiLabel")]
     public string? EmojiLabel { get; set; }
 
     [JsonPropertyName("improvementText")]
     public string? ImprovementText { get; set; }
+
     [JsonPropertyName("volunteerOpinion")]
     public string? VolunteerOpinion { get; set; }
 
-    [JsonPropertyName("feedback")]
-    public string? Feedback { get; set; }
+    [JsonPropertyName("feedbackText")]
+    public string? FeedbackText { get; set; }
 }
