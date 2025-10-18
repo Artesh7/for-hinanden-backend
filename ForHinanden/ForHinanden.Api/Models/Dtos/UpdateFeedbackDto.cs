@@ -10,6 +10,14 @@ public class UpdateFeedbackDto
     [JsonPropertyName("feedbackText")]
     public string? FeedbackText { get; set; }
 
+    // alias
+    [JsonPropertyName("feedback")]
+    public string? Feedback
+    {
+        get => FeedbackText;
+        set => FeedbackText = value;
+    }
+
     [JsonPropertyName("emojiLabel")]
     public string? EmojiLabel { get; set; }
 

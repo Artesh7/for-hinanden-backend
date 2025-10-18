@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace ForHinanden.Api.Models.Dtos;
 
@@ -22,4 +21,11 @@ public class FeedbackDto
 
     [JsonPropertyName("feedbackText")]
     public string? FeedbackText { get; set; }
+
+    [JsonPropertyName("feedback")]
+    public string? Feedback
+    {
+        get => FeedbackText;
+        set => FeedbackText = value;
+    }
 }
