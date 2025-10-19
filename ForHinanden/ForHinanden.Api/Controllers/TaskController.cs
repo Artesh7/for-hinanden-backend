@@ -94,15 +94,40 @@ public class TaskController : ControllerBase
     }
     
     
-    // GET /api/tasks/{id}
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetTask(Guid id)
     {
         var task = await _context.Tasks
             .Include(t => t.TaskCategories)
+            .ThenInclude(tc => tc.Category)
+            .Include(t => t.City)
+            .Include(t => t.PriorityOption)
+            .Include(t => t.DurationOption)
             .FirstOrDefaultAsync(t => t.Id == id);
+
         if (task == null) return NotFound();
-        return Ok(task);
+
+        var dto = new
+        {
+            task.Id,
+            task.Title,
+            task.Description,
+            task.RequestedBy,
+
+            City = new { id = task.CityId, name = task.City.Name },
+            Priority = new { id = task.PriorityOptionId, name = task.PriorityOption.Name },
+            Duration = new { id = task.DurationOptionId, name = task.DurationOption.Name },
+
+            Categories = task.TaskCategories
+                .Select(tc => new { id = tc.CategoryId, name = tc.Category.Name })
+                .ToList(),
+
+            task.IsAccepted,
+            task.AcceptedBy,
+            task.CreatedAt
+        };
+
+        return Ok(dto);
     }
 
     // POST /api/tasks
