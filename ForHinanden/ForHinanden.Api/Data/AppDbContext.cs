@@ -19,6 +19,9 @@ public class AppDbContext : DbContext
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<TaskCategory> TaskCategories => Set<TaskCategory>();
 
+    // feedback
+    public DbSet<Feedback> Feedbacks { get; set; }
+
     // NEW option tables
     public DbSet<PriorityOption> PriorityOptions => Set<PriorityOption>();
     public DbSet<DurationOption> DurationOptions => Set<DurationOption>();

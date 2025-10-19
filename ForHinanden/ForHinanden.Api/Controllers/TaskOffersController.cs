@@ -40,6 +40,29 @@ public class TaskOffersController : ControllerBase
         {
             return Conflict("Du har allerede anmodet om at hjælpe på denne task.");
         }
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);
+        if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
+        {
+            var fcmMessage = new FirebaseAdmin.Messaging.Message
+            {
+                Token = user.DeviceId, // DeviceId now used as FCM token
+                Notification = new FirebaseAdmin.Messaging.Notification
+                {
+                    Title = $"{user.FirstName} {user.LastName} har tilbudt hjælp til din opgave '{task.Title}'.",
+                    Body = $"{offer.Message}"
+                }
+            };
+
+            try
+            {
+                await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the API call
+                Console.WriteLine($"FCM notification failed: {ex.Message}");
+            }
+        }
 
         return Created($"/api/tasks/{taskId}/offers/{offer.Id}", offer);
     }
@@ -75,22 +98,25 @@ public class TaskOffersController : ControllerBase
     }
 
     // POST /api/tasks/{taskId}/offers/{offerId}/accept
-    [HttpPost("{offerId:guid}/accept")]
+   [HttpPost("{offerId:guid}/accept")]
     public async Task<IActionResult> AcceptOffer(Guid taskId, Guid offerId)
     {
+        // Find the task
         var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == taskId);
         if (task is null) return NotFound("Task findes ikke.");
 
         if (task.IsAccepted) return BadRequest("Task er allerede accepteret.");
 
+        // Find the offer
         var offer = await _context.TaskOffers.FirstOrDefaultAsync(o => o.Id == offerId && o.TaskId == taskId);
         if (offer is null) return NotFound("Offer findes ikke for denne task.");
 
-        // Accept udvalgt offer, afvis resten
+        // Accept selected offer
         offer.Status = OfferStatus.Accepted;
         task.IsAccepted = true;
         task.AcceptedBy = offer.OfferedBy;
 
+        // Reject other pending offers
         var otherOffers = await _context.TaskOffers
             .Where(o => o.TaskId == taskId && o.Id != offerId)
             .ToListAsync();
@@ -100,6 +126,31 @@ public class TaskOffersController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        // --- Send Firebase notification to task creator ---
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.AcceptedBy);
+        if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
+        {
+            var fcmMessage = new FirebaseAdmin.Messaging.Message
+            {
+                Token = user.DeviceId, // DeviceId now used as FCM token
+                Notification = new FirebaseAdmin.Messaging.Notification
+                {
+                    Title = "Din opgave er accepteret!",
+                    Body = $"{user.FirstName} {user.LastName} har accepteret din opgave '{task.Title}'."
+                }
+            };
+
+            try
+            {
+                await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the API call
+                Console.WriteLine($"FCM notification failed: {ex.Message}");
+            }
+        }
+
         return Ok(new
         {
             TaskId = task.Id,
@@ -108,6 +159,7 @@ public class TaskOffersController : ControllerBase
             OfferStatus = offer.Status
         });
     }
+
 }
 
 // Ekstra endpoint: liste over alle offers på alle tasks for en bestemt ejer

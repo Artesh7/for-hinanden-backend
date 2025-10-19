@@ -3,6 +3,7 @@ using System;
 using ForHinanden.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ForHinanden.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251017190019_Fix_Feedback_Schema")]
+    partial class Fix_Feedback_Schema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -94,13 +97,7 @@ namespace ForHinanden.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("EmojiLabel")
-                        .HasColumnType("text");
-
                     b.Property<string>("FeedbackText")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ImprovementText")
                         .HasColumnType("text");
 
                     b.Property<int>("Rating")
@@ -108,9 +105,6 @@ namespace ForHinanden.Api.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("VolunteerOpinion")
-                        .HasColumnType("text");
 
                     b.HasKey("Id");
 

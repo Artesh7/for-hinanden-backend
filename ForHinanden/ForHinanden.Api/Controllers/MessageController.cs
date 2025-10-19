@@ -65,6 +65,29 @@ public class MessageController : ControllerBase
         _context.Messages.Add(message);
         await _context.SaveChangesAsync();
 
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == message.Sender);
+        if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
+        {
+            var fcmMessage = new FirebaseAdmin.Messaging.Message
+            {
+                Token = user.DeviceId, // DeviceId now used as FCM token
+                Notification = new FirebaseAdmin.Messaging.Notification
+                {
+                    Title = $"{user.FirstName} {user.LastName}:",
+                    Body = $"{message.Content}"
+                }
+            };
+
+            try
+            {
+                await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the API call
+                Console.WriteLine($"FCM notification failed: {ex.Message}");
+            }
+        }
         return Created($"/api/messages/{message.Id}", message);
     }
 
