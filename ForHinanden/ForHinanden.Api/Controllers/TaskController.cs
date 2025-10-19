@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
-using FirebaseAdmin.Messaging;
 using Microsoft.AspNetCore.Mvc;
 using ForHinanden.Api.Data;
 using ForHinanden.Api.Models;
@@ -9,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using TaskModel = ForHinanden.Api.Models.Task;
 using Microsoft.AspNetCore.SignalR;
 using ForHinanden.Api.Hubs;
-using Message = ForHinanden.Api.Models.Message;
 
 namespace ForHinanden.Api.Controllers;
 
@@ -96,40 +94,15 @@ public class TaskController : ControllerBase
     }
     
     
+    // GET /api/tasks/{id}
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetTask(Guid id)
     {
         var task = await _context.Tasks
             .Include(t => t.TaskCategories)
-            .ThenInclude(tc => tc.Category)
-            .Include(t => t.City)
-            .Include(t => t.PriorityOption)
-            .Include(t => t.DurationOption)
             .FirstOrDefaultAsync(t => t.Id == id);
-
         if (task == null) return NotFound();
-
-        var dto = new
-        {
-            task.Id,
-            task.Title,
-            task.Description,
-            task.RequestedBy,
-
-            City = new { id = task.CityId, name = task.City.Name },
-            Priority = new { id = task.PriorityOptionId, name = task.PriorityOption.Name },
-            Duration = new { id = task.DurationOptionId, name = task.DurationOption.Name },
-
-            Categories = task.TaskCategories
-                .Select(tc => new { id = tc.CategoryId, name = tc.Category.Name })
-                .ToList(),
-
-            task.IsAccepted,
-            task.AcceptedBy,
-            task.CreatedAt
-        };
-
-        return Ok(dto);
+        return Ok(task);
     }
 
     // POST /api/tasks
@@ -201,26 +174,20 @@ public class TaskController : ControllerBase
 
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
-        
-        var fcmMessage = new FirebaseAdmin.Messaging.Message
-        {
-            Topic = "allUsers", 
-            Notification = new FirebaseAdmin.Messaging.Notification
-            {
-                Title = "En person i nærheden har brug for hjælp!",
-                Body = $"{task.Description}"
-            }
-        };
 
-        try
+        // --- Real-time notification (optional) ---
+        var notification = new
         {
-            await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
-        }
-        catch (Exception ex)
-        {
-            // Log the error but don't fail the API call
-            Console.WriteLine($"FCM notification failed: {ex.Message}");
-        }
+            Id = task.Id,
+            Title = task.Title,
+            City = new { id = city.Id, name = city.Name },
+            Priority = new { id = priorityOpt.Id, name = priorityOpt.Name },
+            Duration = new { id = durationOpt.Id, name = durationOpt.Name },
+            Categories = existingCats.Select(c => new { id = c.Id, name = c.Name }).ToList(),
+            RequestedBy = task.RequestedBy,
+            CreatedAt = task.CreatedAt
+        };
+        await _hub.Clients.All.SendAsync("taskCreated", notification);
 
         // --- Return created task in list-item shape ---
         return Created($"/api/tasks/{task.Id}", new
@@ -243,51 +210,20 @@ public class TaskController : ControllerBase
     }
 
     // (Legacy accept endpoint kept as-is)
-[HttpPost("{id:guid}/accept")]
-public async Task<IActionResult> AcceptLegacy(Guid id, [FromBody] AcceptTaskDto body)
-{
-    if (body is null || string.IsNullOrWhiteSpace(body.AcceptedBy))
-        return BadRequest("acceptedBy er påkrævet.");
-
-    var task = await _context.Tasks.FindAsync(id);
-    if (task is null) return NotFound();
-    if (task.IsAccepted) return BadRequest("Opgaven er allerede accepteret.");
-
-    // Mark as accepted
-    task.IsAccepted = true;
-    task.AcceptedBy = body.AcceptedBy.Trim();
-    await _context.SaveChangesAsync();
-
-    // ------------------ 🔔 Send FCM notification ------------------
-    // Find the user who originally created the task
-    var creator = await _context.Users
-        .AsNoTracking()
-        .FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);  // or whatever your property is called
-
-    if (creator != null && !string.IsNullOrEmpty(creator.DeviceId))
+    [HttpPost("{id:guid}/accept")]
+    public async System.Threading.Tasks.Task<IActionResult> AcceptLegacy(Guid id, [FromBody] AcceptTaskDto body)
     {
-        try
-        {
-            var message = new FirebaseAdmin.Messaging.Message
-            {
-                Token = creator.DeviceId,  // using DeviceId as FCM token
-                Notification = new Notification
-                {
-                    Title = "🎉 Din opgave er blevet accepteret!",
-                    Body = $"{body.AcceptedBy} har accepteret din opgave: \"{task.Title}\"."
-                }
-            };
+        if (body is null || string.IsNullOrWhiteSpace(body.AcceptedBy))
+            return BadRequest("acceptedBy er påkrævet.");
 
-            await FirebaseMessaging.DefaultInstance.SendAsync(message);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ FCM send failed: {ex.Message}");
-            // You might want to log this properly but don’t block the response
-        }
+        var task = await _context.Tasks.FindAsync(id);
+        if (task is null) return NotFound();
+        if (task.IsAccepted) return BadRequest("Opgaven er allerede accepteret.");
+
+        task.IsAccepted = true;
+        task.AcceptedBy = body.AcceptedBy.Trim();
+
+        await _context.SaveChangesAsync();
+        return Ok(task);
     }
-
-    // Return updated task
-    return Ok(task);
-}
 }
