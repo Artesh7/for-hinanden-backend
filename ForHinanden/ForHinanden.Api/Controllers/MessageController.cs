@@ -15,17 +15,27 @@ public class MessageController : ControllerBase
     private readonly AppDbContext _context;
     public MessageController(AppDbContext context) => _context = context;
 
-    // GET: api/messages/{taskId}
     [HttpGet("{taskId:guid}")]
     public async Task<IActionResult> GetByTask(Guid taskId)
     {
         var messages = await _context.Messages
+            .AsNoTracking()
             .Where(m => m.TaskId == taskId)
             .OrderBy(m => m.SentAt)
+            .Select(m => new
+            {
+                m.Id,
+                m.TaskId,
+                m.Sender,
+                m.Receiver,
+                m.Content,
+                m.SentAt
+            })
             .ToListAsync();
+
         return Ok(messages);
     }
-
+    
     // POST: api/messages (kun hvis task er accepteret, og kun mellem de to parter)
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateMessageDto dto)
