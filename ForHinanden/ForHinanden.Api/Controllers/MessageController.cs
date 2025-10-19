@@ -76,11 +76,12 @@ public class MessageController : ControllerBase
         await _context.SaveChangesAsync();
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == message.Sender);
+        var receiver = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == message.Receiver);
         if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
         {
             var fcmMessage = new FirebaseAdmin.Messaging.Message
             {
-                Token = user.DeviceId, // DeviceId now used as FCM token
+                Token = receiver.DeviceId, // DeviceId now used as FCM token
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
                     Title = $"{user.FirstName} {user.LastName}:",
