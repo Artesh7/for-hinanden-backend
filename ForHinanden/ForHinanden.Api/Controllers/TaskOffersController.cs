@@ -40,7 +40,7 @@ public class TaskOffersController : ControllerBase
         {
             return Conflict("Du har allerede anmodet om at hjælpe på denne task.");
         }
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == offer.OfferedBy);
         if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
         {
             var fcmMessage = new FirebaseAdmin.Messaging.Message
