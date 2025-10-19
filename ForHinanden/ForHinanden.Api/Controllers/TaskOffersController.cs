@@ -166,7 +166,7 @@ public class TaskOffersController : ControllerBase
         });
     }
 // DELETE /api/tasks/{taskId}/offers/{offeredBy}]
-    [HttpDelete("{taskId:guid}/offers/{offeredBy}")]
+    [HttpDelete("{offeredBy}")]
     public async Task<IActionResult> CancelOffer(Guid taskId, string offeredBy)
     {
         var offer = await _context.TaskOffers
