@@ -98,8 +98,15 @@ public class MessageController : ControllerBase
                 Console.WriteLine($"FCM notification failed: {ex.Message}");
             }
         }
-        return Created($"/api/messages/{message.Id}", message);
-    }
+        return Created($"/api/messages/{message.Id}", new
+        {
+            message.Id,
+            message.TaskId,
+            message.Sender,
+            message.Receiver,
+            message.Content,
+            message.SentAt
+        });    }
 
     // GET: api/messages/conversation?user1=...&user2=...
     [HttpGet("conversation")]
