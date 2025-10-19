@@ -2,8 +2,10 @@
 using System.Linq;
 using System.Threading.Tasks;
 using ForHinanden.Api.Data;
+using ForHinanden.Api.Hubs;
 using ForHinanden.Api.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ForHinanden.Api.Controllers;
@@ -13,8 +15,14 @@ namespace ForHinanden.Api.Controllers;
 public class TaskOffersController : ControllerBase
 {
     private readonly AppDbContext _context;
-    public TaskOffersController(AppDbContext context) => _context = context;
+    private readonly IHubContext<NotificationsHub> _hub;
 
+    public TaskOffersController(AppDbContext context, IHubContext<NotificationsHub> hub)
+    {
+        _context = context;
+        _hub = hub;
+    }
+    
     // POST /api/tasks/{taskId}/offers
     [HttpPost]
     public async Task<IActionResult> CreateOffer(Guid taskId, [FromBody] CreateOfferDto dto)
@@ -67,9 +75,6 @@ public class TaskOffersController : ControllerBase
         return Created($"/api/tasks/{taskId}/offers/{offer.Id}", offer);
     }
     
-  
-
-
     // GET /api/tasks/{taskId}/offers
     [HttpGet]
     public async Task<IActionResult> GetOffersForTask(Guid taskId)
@@ -160,7 +165,42 @@ public class TaskOffersController : ControllerBase
             OfferStatus = offer.Status
         });
     }
+// DELETE /api/tasks/{taskId}/offers/{offeredBy}]
+    [HttpDelete("{taskId:guid}/offers/{offeredBy}")]
+    public async Task<IActionResult> CancelOffer(Guid taskId, string offeredBy)
+    {
+        var offer = await _context.TaskOffers
+            .FirstOrDefaultAsync(o => o.TaskId == taskId && o.OfferedBy == offeredBy);
 
+        if (offer is null)
+            return NotFound($"Ingen tilbud fundet for bruger '{offeredBy}' på opgaven {taskId}.");
+
+        _context.TaskOffers.Remove(offer);
+        await _context.SaveChangesAsync();
+
+        await _hub.Clients.All.SendAsync("offerCancelled", new { taskId, offeredBy });
+        return NoContent();
+    }
+    
+    //for notivication when task is completed
+    // PUT /api/tasks/{id}/complete
+    [HttpPut("{id:guid}/complete")]
+    public async Task<IActionResult> MarkTaskCompleted(Guid id)
+    {
+        var task = await _context.Tasks.FindAsync(id);
+        if (task == null) return NotFound();
+
+        // her kunne du evt. have et felt IsCompleted = true
+        // men vi sender blot feedback-beskeden ud
+        await _hub.Clients.All.SendAsync("feedbackRequested", new
+        {
+            taskId = task.Id,
+            title = task.Title,
+            requestedBy = task.RequestedBy
+        });
+
+        return Ok(new { message = "Feedback notification sent." });
+    }
 }
 
 // Ekstra endpoint: liste over alle offers på alle tasks for en bestemt ejer
