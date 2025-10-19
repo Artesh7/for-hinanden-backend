@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using TaskModel = ForHinanden.Api.Models.Task;
 using Microsoft.AspNetCore.SignalR;
 using ForHinanden.Api.Hubs;
+using ForHinanden.Api.Models.Dtos;
 
 namespace ForHinanden.Api.Controllers;
 
@@ -34,6 +35,7 @@ public class TaskController : ControllerBase
             .Include(t => t.PriorityOption)
             .Include(t => t.DurationOption)
             .Include(t => t.TaskCategories).ThenInclude(tc => tc.Category)
+            .Include(t => t.TaskOffers)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
@@ -50,6 +52,16 @@ public class TaskController : ControllerBase
 
             Categories = t.TaskCategories
                 .Select(tc => new { id = tc.CategoryId, name = tc.Category.Name })
+                .ToList(),
+            Offers = t.TaskOffers
+                .Select(o => new
+                {
+                    o.Id,
+                    o.OfferedBy,
+                    o.Message,
+                    o.Status,
+                    o.CreatedAt
+                })
                 .ToList(),
 
             t.IsAccepted,
@@ -225,5 +237,69 @@ public class TaskController : ControllerBase
 
         await _context.SaveChangesAsync();
         return Ok(task);
+    }
+    // PUT /api/tasks/{id}
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
+    {
+        if (dto is null || id != dto.Id)
+            return BadRequest("Invalid request body or mismatched task id.");
+
+        var task = await _context.Tasks
+            .Include(t => t.TaskCategories)
+            .FirstOrDefaultAsync(t => t.Id == id);
+
+        if (task is null)
+            return NotFound($"No task found with id {id}.");
+
+        // Opdater felterne
+        task.Title = dto.Title?.Trim() ?? task.Title;
+        task.Description = dto.Description?.Trim();
+        task.RequestedBy = dto.RequestedBy?.Trim() ?? task.RequestedBy;
+        task.CityId = dto.CityId;
+        task.PriorityOptionId = dto.PriorityOptionId;
+        task.DurationOptionId = dto.DurationOptionId;
+
+        // Opdater kategorier (fjern gamle, tilføj nye)
+        task.TaskCategories.Clear();
+        if (dto.CategoryIds != null && dto.CategoryIds.Any())
+        {
+            foreach (var catId in dto.CategoryIds)
+            {
+                task.TaskCategories.Add(new TaskCategory
+                {
+                    TaskId = id,
+                    CategoryId = catId
+                });
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            task.Id,
+            task.Title,
+            task.Description,
+            task.RequestedBy,
+            task.CityId,
+            task.PriorityOptionId,
+            task.DurationOptionId,
+            task.IsAccepted,
+            task.AcceptedBy
+        });
+    }
+
+    // DELETE /api/tasks/{id}
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteTask(Guid id)
+    {
+        var task = await _context.Tasks.FindAsync(id);
+        if (task is null) return NotFound();
+
+        _context.Tasks.Remove(task);
+        await _context.SaveChangesAsync();
+
+        return NoContent();
     }
 }

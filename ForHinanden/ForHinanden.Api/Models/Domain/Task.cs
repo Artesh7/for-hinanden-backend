@@ -25,4 +25,6 @@ public class Task
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<TaskCategory> TaskCategories { get; set; } = new List<TaskCategory>();
+    public ICollection<TaskOffer> TaskOffers { get; set; } = new List<TaskOffer>();
+
 }
