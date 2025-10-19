@@ -127,7 +127,8 @@ public class TaskOffersController : ControllerBase
         await _context.SaveChangesAsync();
 
         // --- Send Firebase notification to task creator ---
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.AcceptedBy);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == offer.OfferedBy);
+        var sender = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);
         if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
         {
             var fcmMessage = new FirebaseAdmin.Messaging.Message
@@ -136,7 +137,7 @@ public class TaskOffersController : ControllerBase
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
                     Title = "Din opgave er accepteret!",
-                    Body = $"{user.FirstName} {user.LastName} har accepteret din opgave '{task.Title}'."
+                    Body = $"{sender.FirstName} {sender.LastName} har accepteret din opgave '{task.Title}'."
                 }
             };
 
