@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using CloudinaryDotNet;              // <-- Cloudinary
 using CloudinaryDotNet.Actions;      // <-- Cloudinary
+using ForHinanden.Api.Services;
 
 namespace ForHinanden.Api.Controllers;
 
@@ -119,7 +120,7 @@ public class UsersController : ControllerBase
     [RequestSizeLimit(10_000_000)]
     public async Task<IActionResult> UploadPhoto(
         [FromForm] UploadUserPhotoForm form,
-        [FromServices] Cloudinary cloudinary) // <-- injiceret fra Program.cs
+        [FromServices] ICloudinaryService cloudinary) // <-- injiceret via ICloudinaryService
     {
         if (form is null || string.IsNullOrWhiteSpace(form.deviceId))
             return BadRequest("deviceId is required.");
@@ -166,7 +167,7 @@ public class UsersController : ControllerBase
     [HttpDelete("photo")]
     public async Task<IActionResult> DeletePhoto(
         [FromBody] DeleteUserPhotoDto dto,
-        [FromServices] Cloudinary cloudinary)
+        [FromServices] ICloudinaryService cloudinary)
     {
         if (string.IsNullOrWhiteSpace(dto.DeviceId))
             return BadRequest("DeviceId is required.");
@@ -247,4 +248,4 @@ public class UsersController : ControllerBase
         }
     }
 }
- //z
+

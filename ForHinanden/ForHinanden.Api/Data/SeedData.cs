@@ -61,12 +61,23 @@ public static class SeedData
 
         if (defaultCityId != Guid.Empty)
         {
-            await db.Database.ExecuteSqlRawAsync(@"
+            if (db.Database.IsRelational())
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
 UPDATE ""Tasks""
 SET ""CityId"" = {0}
 WHERE ""CityId"" IS NULL
-   OR ""CityId"" = '00000000-0000-0000-0000-000000000000'::uuid;
-", defaultCityId);
+   OR ""CityId"" = '00000000-0000-0000-0000-000000000000'::uuid;", defaultCityId);
+            }
+            else
+            {
+                var tasksToUpdate = await db.Tasks
+                    .Where(t => t.CityId == Guid.Empty || t.CityId == null)
+                    .ToListAsync();
+                foreach (var t in tasksToUpdate)
+                    t.CityId = defaultCityId;
+                if (tasksToUpdate.Any()) await db.SaveChangesAsync();
+            }
         }
 
         var defaultPriorityId = await db.PriorityOptions
@@ -77,12 +88,23 @@ WHERE ""CityId"" IS NULL
 
         if (defaultPriorityId != Guid.Empty)
         {
-            await db.Database.ExecuteSqlRawAsync(@"
+            if (db.Database.IsRelational())
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
 UPDATE ""Tasks""
 SET ""PriorityOptionId"" = {0}
 WHERE ""PriorityOptionId"" IS NULL
-   OR ""PriorityOptionId"" = '00000000-0000-0000-0000-000000000000'::uuid;
-", defaultPriorityId);
+   OR ""PriorityOptionId"" = '00000000-0000-0000-0000-000000000000'::uuid;", defaultPriorityId);
+            }
+            else
+            {
+                var tasksToUpdate = await db.Tasks
+                    .Where(t => t.PriorityOptionId == Guid.Empty || t.PriorityOptionId == null)
+                    .ToListAsync();
+                foreach (var t in tasksToUpdate)
+                    t.PriorityOptionId = defaultPriorityId;
+                if (tasksToUpdate.Any()) await db.SaveChangesAsync();
+            }
         }
 
         var defaultDurationId = await db.DurationOptions
@@ -93,12 +115,23 @@ WHERE ""PriorityOptionId"" IS NULL
 
         if (defaultDurationId != Guid.Empty)
         {
-            await db.Database.ExecuteSqlRawAsync(@"
+            if (db.Database.IsRelational())
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
 UPDATE ""Tasks""
 SET ""DurationOptionId"" = {0}
 WHERE ""DurationOptionId"" IS NULL
-   OR ""DurationOptionId"" = '00000000-0000-0000-0000-000000000000'::uuid;
-", defaultDurationId);
+   OR ""DurationOptionId"" = '00000000-0000-0000-0000-000000000000'::uuid;", defaultDurationId);
+            }
+            else
+            {
+                var tasksToUpdate = await db.Tasks
+                    .Where(t => t.DurationOptionId == Guid.Empty || t.DurationOptionId == null)
+                    .ToListAsync();
+                foreach (var t in tasksToUpdate)
+                    t.DurationOptionId = defaultDurationId;
+                if (tasksToUpdate.Any()) await db.SaveChangesAsync();
+            }
         }
     }
 
@@ -150,11 +183,20 @@ WHERE ""DurationOptionId"" IS NULL
         }
 
         // Mål findes allerede -> remap alle TaskCategories og slet den gamle
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (db.Database.IsRelational())
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
 UPDATE ""TaskCategories""
 SET ""CategoryId"" = {0}
-WHERE ""CategoryId"" = {1};
-", target.Id, old.Id);
+WHERE ""CategoryId"" = {1};", target.Id, old.Id);
+        }
+        else
+        {
+            var tcs = await db.TaskCategories.Where(tc => tc.CategoryId == old.Id).ToListAsync();
+            foreach (var tc in tcs)
+                tc.CategoryId = target.Id;
+            if (tcs.Any()) await db.SaveChangesAsync();
+        }
 
         db.Categories.Remove(old);
         await db.SaveChangesAsync();
