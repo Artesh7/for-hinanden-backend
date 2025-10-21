@@ -239,96 +239,90 @@ public class TaskController : ControllerBase
         return Ok(task);
     }
     // PUT /api/tasks/{id}
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
+ [HttpPut("{id:guid}")]
+public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
+{
+    if (dto is null || id != dto.Id)
+        return BadRequest("Invalid request body or mismatched task id.");
+
+    if (dto.CityId == Guid.Empty) return BadRequest("CityId is required.");
+    if (dto.PriorityOptionId == Guid.Empty) return BadRequest("PriorityOptionId is required.");
+    if (dto.DurationOptionId == Guid.Empty) return BadRequest("DurationOptionId is required.");
+
+    var city = await _context.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Id == dto.CityId);
+    if (city is null) return BadRequest("Invalid CityId.");
+
+    var priorityOpt = await _context.PriorityOptions.AsNoTracking()
+        .FirstOrDefaultAsync(p => p.Id == dto.PriorityOptionId && p.IsActive);
+    if (priorityOpt is null) return BadRequest("Invalid or inactive PriorityOptionId.");
+
+    var durationOpt = await _context.DurationOptions.AsNoTracking()
+        .FirstOrDefaultAsync(d => d.Id == dto.DurationOptionId && d.IsActive);
+    if (durationOpt is null) return BadRequest("Invalid or inactive DurationOptionId.");
+
+    // KUN valider kategorier hvis de er medsendt
+    var existingCats = new List<Category>();
+    if (dto.CategoryIds is { Count: > 0 })
     {
-        if (dto is null || id != dto.Id)
-            return BadRequest("Invalid request body or mismatched task id.");
+        var categoryIds = dto.CategoryIds.Where(g => g != Guid.Empty).Distinct().ToList();
+        existingCats = await _context.Categories.Where(c => categoryIds.Contains(c.Id)).ToListAsync();
 
-        // Basic FK presence checks
-        if (dto.CityId == Guid.Empty) return BadRequest("CityId is required.");
-        if (dto.PriorityOptionId == Guid.Empty) return BadRequest("PriorityOptionId is required.");
-        if (dto.DurationOptionId == Guid.Empty) return BadRequest("DurationOptionId is required.");
+        var missing = categoryIds.Except(existingCats.Select(c => c.Id)).ToList();
+        if (missing.Count > 0)
+            return BadRequest($"Unknown CategoryIds: {string.Join(", ", missing)}");
+    }
 
-        // Validate related entities
-        var city = await _context.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Id == dto.CityId);
-        if (city is null) return BadRequest("Invalid CityId.");
+    var task = await _context.Tasks
+        .Include(t => t.TaskCategories)
+        .FirstOrDefaultAsync(t => t.Id == id);
 
-        var priorityOpt = await _context.PriorityOptions.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == dto.PriorityOptionId && p.IsActive);
-        if (priorityOpt is null) return BadRequest("Invalid or inactive PriorityOptionId.");
+    if (task is null)
+        return NotFound($"No task found with id {id}.");
 
-        var durationOpt = await _context.DurationOptions.AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == dto.DurationOptionId && d.IsActive);
-        if (durationOpt is null) return BadRequest("Invalid or inactive DurationOptionId.");
+    // --- Opdater kun når der er sendt en værdi (null = ingen ændring) ---
+    if (dto.Title != null)        task.Title        = dto.Title.Trim();
+    if (dto.Description != null)  task.Description  = dto.Description.Trim(); // aldrig null til DB
+    if (dto.RequestedBy != null)  task.RequestedBy  = dto.RequestedBy.Trim();
 
-        // Validate categories
-        var categoryIds = (dto.CategoryIds ?? new List<Guid>())
-            .Where(g => g != Guid.Empty)
-            .Distinct()
-            .ToList();
+    task.CityId           = dto.CityId;
+    task.PriorityOptionId = dto.PriorityOptionId;
+    task.DurationOptionId = dto.DurationOptionId;
 
-        var existingCats = new List<Category>();
-        if (categoryIds.Any())
-        {
-            existingCats = await _context.Categories
-                .Where(c => categoryIds.Contains(c.Id))
-                .ToListAsync();
-
-            var missing = categoryIds.Except(existingCats.Select(c => c.Id)).ToList();
-            if (missing.Count > 0)
-                return BadRequest($"Unknown CategoryIds: {string.Join(", ", missing)}");
-        }
-
-        var task = await _context.Tasks
-            .Include(t => t.TaskCategories)
-            .FirstOrDefaultAsync(t => t.Id == id);
-
-        if (task is null)
-            return NotFound($"No task found with id {id}.");
-
-        // Update fields
-        task.Title = dto.Title?.Trim() ?? task.Title;
-        task.Description = dto.Description?.Trim();
-        task.RequestedBy = dto.RequestedBy?.Trim() ?? task.RequestedBy;
-        task.CityId = dto.CityId;
-        task.PriorityOptionId = dto.PriorityOptionId;
-        task.DurationOptionId = dto.DurationOptionId;
-
-        // Replace categories safely
-        task.TaskCategories = task.TaskCategories ?? new List<TaskCategory>();
+    // Erstat kun kategorier hvis client sendte en liste
+    if (dto.CategoryIds != null)
+    {
+        task.TaskCategories ??= new List<TaskCategory>();
         task.TaskCategories.Clear();
         foreach (var catId in existingCats.Select(c => c.Id))
         {
-            task.TaskCategories.Add(new TaskCategory
-            {
-                Task = task,
-                CategoryId = catId
-            });
+            task.TaskCategories.Add(new TaskCategory { Task = task, CategoryId = catId });
         }
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateException)
-        {
-            return StatusCode(500, "Failed to update task due to a database error.");
-        }
-
-        return Ok(new
-        {
-            task.Id,
-            task.Title,
-            task.Description,
-            task.RequestedBy,
-            task.CityId,
-            task.PriorityOptionId,
-            task.DurationOptionId,
-            task.IsAccepted,
-            task.AcceptedBy
-        });
     }
+
+    try
+    {
+        await _context.SaveChangesAsync();
+    }
+    catch (DbUpdateException ex)
+    {
+        // valgfrit: log ex.InnerException?.Message
+        return StatusCode(500, "Failed to update task due to a database error.");
+    }
+
+    return Ok(new
+    {
+        task.Id,
+        task.Title,
+        task.Description,
+        task.RequestedBy,
+        task.CityId,
+        task.PriorityOptionId,
+        task.DurationOptionId,
+        task.IsAccepted,
+        task.AcceptedBy
+    });
+}
+
 
     // DELETE /api/tasks/{id}
     [HttpDelete("{id:guid}")]
