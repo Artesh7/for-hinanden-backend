@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Linq;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
@@ -104,8 +104,7 @@ public class TaskController : ControllerBase
 
         return Ok(new { priorities, durations, cities, categories });
     }
-    
-    
+
     // GET /api/tasks/{id}
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetTask(Guid id)
@@ -126,25 +125,17 @@ public class TaskController : ControllerBase
         if (dto.PriorityOptionId == Guid.Empty) return BadRequest("PriorityOptionId is required.");
         if (dto.DurationOptionId == Guid.Empty) return BadRequest("DurationOptionId is required.");
 
-        // --- City (id -> entity) ---
-        var city = await _context.Cities
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == dto.CityId);
+        var city = await _context.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Id == dto.CityId);
         if (city is null) return BadRequest("Invalid CityId.");
 
-        // --- Priority option (GUID) ---
-        var priorityOpt = await _context.PriorityOptions
-            .AsNoTracking()
+        var priorityOpt = await _context.PriorityOptions.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == dto.PriorityOptionId && p.IsActive);
         if (priorityOpt is null) return BadRequest("Invalid or inactive PriorityOptionId.");
 
-        // --- Duration option (GUID) ---
-        var durationOpt = await _context.DurationOptions
-            .AsNoTracking()
+        var durationOpt = await _context.DurationOptions.AsNoTracking()
             .FirstOrDefaultAsync(d => d.Id == dto.DurationOptionId && d.IsActive);
         if (durationOpt is null) return BadRequest("Invalid or inactive DurationOptionId.");
 
-        // --- Categories (ids -> entities) ---
         var categoryIds = (dto.CategoryIds ?? new())
             .Where(id => id != Guid.Empty)
             .Distinct()
@@ -158,18 +149,15 @@ public class TaskController : ControllerBase
         if (missing.Count > 0)
             return BadRequest($"Unknown CategoryIds: {string.Join(", ", missing)}");
 
-        // --- Build Task entity (store FK GUIDs) ---
         var task = new TaskModel
         {
             Id = Guid.NewGuid(),
             Title = dto.Title?.Trim() ?? "",
             Description = dto.Description?.Trim() ?? "",
             RequestedBy = dto.RequestedBy?.Trim() ?? "",
-
             CityId = city.Id,
             PriorityOptionId = priorityOpt.Id,
             DurationOptionId = durationOpt.Id,
-
             IsAccepted = false,
             AcceptedBy = null,
             CreatedAt = DateTime.UtcNow
@@ -177,17 +165,12 @@ public class TaskController : ControllerBase
 
         foreach (var catId in existingCats.Select(c => c.Id))
         {
-            task.TaskCategories.Add(new TaskCategory
-            {
-                Task = task,
-                CategoryId = catId
-            });
+            task.TaskCategories.Add(new TaskCategory { Task = task, CategoryId = catId });
         }
 
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
 
-        // --- Real-time notification (optional) ---
         var notification = new
         {
             Id = task.Id,
@@ -201,20 +184,16 @@ public class TaskController : ControllerBase
         };
         await _hub.Clients.All.SendAsync("taskCreated", notification);
 
-        // --- Return created task in list-item shape ---
         return Created($"/api/tasks/{task.Id}", new
         {
             task.Id,
             task.Title,
             task.Description,
             task.RequestedBy,
-
             City = new { id = city.Id, name = city.Name },
             Priority = new { id = priorityOpt.Id, name = priorityOpt.Name },
             Duration = new { id = durationOpt.Id, name = durationOpt.Name },
-
             Categories = existingCats.Select(c => new { id = c.Id, name = c.Name }).ToList(),
-
             task.IsAccepted,
             task.AcceptedBy,
             task.CreatedAt
@@ -238,91 +217,110 @@ public class TaskController : ControllerBase
         await _context.SaveChangesAsync();
         return Ok(task);
     }
-    // PUT /api/tasks/{id}
- [HttpPut("{id:guid}")]
-public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
-{
-    if (dto is null || id != dto.Id)
-        return BadRequest("Invalid request body or mismatched task id.");
 
-    if (dto.CityId == Guid.Empty) return BadRequest("CityId is required.");
-    if (dto.PriorityOptionId == Guid.Empty) return BadRequest("PriorityOptionId is required.");
-    if (dto.DurationOptionId == Guid.Empty) return BadRequest("DurationOptionId is required.");
-
-    var city = await _context.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Id == dto.CityId);
-    if (city is null) return BadRequest("Invalid CityId.");
-
-    var priorityOpt = await _context.PriorityOptions.AsNoTracking()
-        .FirstOrDefaultAsync(p => p.Id == dto.PriorityOptionId && p.IsActive);
-    if (priorityOpt is null) return BadRequest("Invalid or inactive PriorityOptionId.");
-
-    var durationOpt = await _context.DurationOptions.AsNoTracking()
-        .FirstOrDefaultAsync(d => d.Id == dto.DurationOptionId && d.IsActive);
-    if (durationOpt is null) return BadRequest("Invalid or inactive DurationOptionId.");
-
-    // KUN valider kategorier hvis de er medsendt
-    var existingCats = new List<Category>();
-    if (dto.CategoryIds is { Count: > 0 })
+    // PUT /api/tasks/{id}  —— FIXED
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
     {
-        var categoryIds = dto.CategoryIds.Where(g => g != Guid.Empty).Distinct().ToList();
-        existingCats = await _context.Categories.Where(c => categoryIds.Contains(c.Id)).ToListAsync();
+        if (dto is null || id != dto.Id)
+            return BadRequest("Invalid request body or mismatched task id.");
 
-        var missing = categoryIds.Except(existingCats.Select(c => c.Id)).ToList();
-        if (missing.Count > 0)
-            return BadRequest($"Unknown CategoryIds: {string.Join(", ", missing)}");
-    }
+        // FK presence
+        if (dto.CityId == Guid.Empty) return BadRequest("CityId is required.");
+        if (dto.PriorityOptionId == Guid.Empty) return BadRequest("PriorityOptionId is required.");
+        if (dto.DurationOptionId == Guid.Empty) return BadRequest("DurationOptionId is required.");
 
-    var task = await _context.Tasks
-        .Include(t => t.TaskCategories)
-        .FirstOrDefaultAsync(t => t.Id == id);
+        // Validate lookups
+        var city = await _context.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Id == dto.CityId);
+        if (city is null) return BadRequest("Invalid CityId.");
 
-    if (task is null)
-        return NotFound($"No task found with id {id}.");
+        var priorityOpt = await _context.PriorityOptions.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == dto.PriorityOptionId && p.IsActive);
+        if (priorityOpt is null) return BadRequest("Invalid or inactive PriorityOptionId.");
 
-    // --- Opdater kun når der er sendt en værdi (null = ingen ændring) ---
-    if (dto.Title != null)        task.Title        = dto.Title.Trim();
-    if (dto.Description != null)  task.Description  = dto.Description.Trim(); // aldrig null til DB
-    if (dto.RequestedBy != null)  task.RequestedBy  = dto.RequestedBy.Trim();
+        var durationOpt = await _context.DurationOptions.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == dto.DurationOptionId && d.IsActive);
+        if (durationOpt is null) return BadRequest("Invalid or inactive DurationOptionId.");
 
-    task.CityId           = dto.CityId;
-    task.PriorityOptionId = dto.PriorityOptionId;
-    task.DurationOptionId = dto.DurationOptionId;
+        // Load task + navs
+        var task = await _context.Tasks
+            .Include(t => t.TaskCategories)
+            .FirstOrDefaultAsync(t => t.Id == id);
 
-    // Erstat kun kategorier hvis client sendte en liste
-    if (dto.CategoryIds != null)
-    {
-        task.TaskCategories ??= new List<TaskCategory>();
-        task.TaskCategories.Clear();
-        foreach (var catId in existingCats.Select(c => c.Id))
+        if (task is null)
+            return NotFound($"No task found with id {id}.");
+
+        // — Only update when value provided (null = no change)
+        if (dto.Title != null)       task.Title       = dto.Title.Trim();
+        if (dto.Description != null) task.Description = dto.Description.Trim();   // aldrig null i DB
+        if (dto.RequestedBy != null) task.RequestedBy = dto.RequestedBy.Trim();
+
+        task.CityId           = dto.CityId;
+        task.PriorityOptionId = dto.PriorityOptionId;
+        task.DurationOptionId = dto.DurationOptionId;
+
+        // --- Categories: delta-opdatering (undgår UNIQUE-constraint og insert-før-delete rækkefølge) ---
+        if (dto.CategoryIds != null)
         {
-            task.TaskCategories.Add(new TaskCategory { Task = task, CategoryId = catId });
+            var wanted = dto.CategoryIds
+                .Where(g => g != Guid.Empty)
+                .Distinct()
+                .ToHashSet();
+
+            // valider kun hvis der faktisk er ønskede kategorier
+            if (wanted.Count > 0)
+            {
+                var exists = await _context.Categories
+                    .Where(c => wanted.Contains(c.Id))
+                    .Select(c => c.Id)
+                    .ToListAsync();
+
+                var missing = wanted.Except(exists).ToList();
+                if (missing.Count > 0)
+                    return BadRequest($"Unknown CategoryIds: {string.Join(", ", missing)}");
+            }
+
+            // nuværende
+            var existingIds = task.TaskCategories.Select(tc => tc.CategoryId).ToList();
+
+            // fjern dem der ikke længere ønskes
+            var toRemove = task.TaskCategories.Where(tc => !wanted.Contains(tc.CategoryId)).ToList();
+            if (toRemove.Count > 0)
+            {
+                _context.TaskCategories.RemoveRange(toRemove);
+                // flush deletions først for at undgå UNIQUE-konflikt når vi tilføjer nye
+                await _context.SaveChangesAsync();
+            }
+
+            // tilføj dem der mangler
+            var toAdd = wanted.Except(existingIds).ToList();
+            foreach (var catId in toAdd)
+                task.TaskCategories.Add(new TaskCategory { TaskId = task.Id, CategoryId = catId });
         }
-    }
 
-    try
-    {
-        await _context.SaveChangesAsync();
-    }
-    catch (DbUpdateException ex)
-    {
-        // valgfrit: log ex.InnerException?.Message
-        return StatusCode(500, "Failed to update task due to a database error.");
-    }
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            // Tip: gør den evt. generisk igen når du er færdig med at teste
+            return StatusCode(500, ex.InnerException?.Message ?? ex.Message);
+        }
 
-    return Ok(new
-    {
-        task.Id,
-        task.Title,
-        task.Description,
-        task.RequestedBy,
-        task.CityId,
-        task.PriorityOptionId,
-        task.DurationOptionId,
-        task.IsAccepted,
-        task.AcceptedBy
-    });
-}
-
+        return Ok(new
+        {
+            task.Id,
+            task.Title,
+            task.Description,
+            task.RequestedBy,
+            task.CityId,
+            task.PriorityOptionId,
+            task.DurationOptionId,
+            task.IsAccepted,
+            task.AcceptedBy
+        });
+    }
 
     // DELETE /api/tasks/{id}
     [HttpDelete("{id:guid}")]
