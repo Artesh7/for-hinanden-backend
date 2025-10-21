@@ -45,25 +45,11 @@ public class TaskController : ControllerBase
             t.Title,
             t.Description,
             t.RequestedBy,
-
             City = new { id = t.CityId, name = t.City.Name },
             Priority = new { id = t.PriorityOptionId, name = t.PriorityOption.Name },
             Duration = new { id = t.DurationOptionId, name = t.DurationOption.Name },
-
-            Categories = t.TaskCategories
-                .Select(tc => new { id = tc.CategoryId, name = tc.Category.Name })
-                .ToList(),
-            Offers = t.TaskOffers
-                .Select(o => new
-                {
-                    o.Id,
-                    o.OfferedBy,
-                    o.Message,
-                    o.Status,
-                    o.CreatedAt
-                })
-                .ToList(),
-
+            Categories = t.TaskCategories.Select(tc => new { id = tc.CategoryId, name = tc.Category.Name }).ToList(),
+            Offers = t.TaskOffers.Select(o => new { o.Id, o.OfferedBy, o.Message, o.Status, o.CreatedAt }).ToList(),
             t.IsAccepted,
             t.AcceptedBy,
             t.CreatedAt
@@ -164,9 +150,7 @@ public class TaskController : ControllerBase
         };
 
         foreach (var catId in existingCats.Select(c => c.Id))
-        {
             task.TaskCategories.Add(new TaskCategory { Task = task, CategoryId = catId });
-        }
 
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
@@ -200,7 +184,7 @@ public class TaskController : ControllerBase
         });
     }
 
-    // (Legacy accept endpoint kept as-is)
+    // (Legacy accept endpoint)
     [HttpPost("{id:guid}/accept")]
     public async System.Threading.Tasks.Task<IActionResult> AcceptLegacy(Guid id, [FromBody] AcceptTaskDto body)
     {
@@ -218,108 +202,103 @@ public class TaskController : ControllerBase
         return Ok(task);
     }
 
-    // PUT /api/tasks/{id}  —— FIXED
+    // PUT /api/tasks/{id} — server-side update + server-side kategori-delta
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
     {
         if (dto is null || id != dto.Id)
             return BadRequest("Invalid request body or mismatched task id.");
 
-        // FK presence
         if (dto.CityId == Guid.Empty) return BadRequest("CityId is required.");
         if (dto.PriorityOptionId == Guid.Empty) return BadRequest("PriorityOptionId is required.");
         if (dto.DurationOptionId == Guid.Empty) return BadRequest("DurationOptionId is required.");
 
         // Validate lookups
-        var city = await _context.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Id == dto.CityId);
-        if (city is null) return BadRequest("Invalid CityId.");
+        var cityExists = await _context.Cities.AsNoTracking().AnyAsync(c => c.Id == dto.CityId);
+        if (!cityExists) return BadRequest("Invalid CityId.");
 
-        var priorityOpt = await _context.PriorityOptions.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == dto.PriorityOptionId && p.IsActive);
-        if (priorityOpt is null) return BadRequest("Invalid or inactive PriorityOptionId.");
+        var prioExists = await _context.PriorityOptions.AsNoTracking()
+            .AnyAsync(p => p.Id == dto.PriorityOptionId && p.IsActive);
+        if (!prioExists) return BadRequest("Invalid or inactive PriorityOptionId.");
 
-        var durationOpt = await _context.DurationOptions.AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == dto.DurationOptionId && d.IsActive);
-        if (durationOpt is null) return BadRequest("Invalid or inactive DurationOptionId.");
+        var durExists = await _context.DurationOptions.AsNoTracking()
+            .AnyAsync(d => d.Id == dto.DurationOptionId && d.IsActive);
+        if (!durExists) return BadRequest("Invalid or inactive DurationOptionId.");
 
-        // Load task + navs
-        var task = await _context.Tasks
-            .Include(t => t.TaskCategories)
-            .FirstOrDefaultAsync(t => t.Id == id);
+        // --- 1) Server-side UPDATE (undgår tracking/concurrency) ---
+        var rows = await _context.Tasks
+            .Where(t => t.Id == id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(t => t.Title,        t => dto.Title != null       ? dto.Title.Trim()       : t.Title)
+                .SetProperty(t => t.Description,  t => dto.Description != null ? dto.Description.Trim() : t.Description)
+                .SetProperty(t => t.RequestedBy,  t => dto.RequestedBy != null ? dto.RequestedBy.Trim() : t.RequestedBy)
+                .SetProperty(t => t.CityId,           t => dto.CityId)
+                .SetProperty(t => t.PriorityOptionId, t => dto.PriorityOptionId)
+                .SetProperty(t => t.DurationOptionId, t => dto.DurationOptionId)
+            );
 
-        if (task is null)
-            return NotFound($"No task found with id {id}.");
+        if (rows == 0) return NotFound($"No task found with id {id}.");
 
-        // — Only update when value provided (null = no change)
-        if (dto.Title != null)       task.Title       = dto.Title.Trim();
-        if (dto.Description != null) task.Description = dto.Description.Trim();   // aldrig null i DB
-        if (dto.RequestedBy != null) task.RequestedBy = dto.RequestedBy.Trim();
-
-        task.CityId           = dto.CityId;
-        task.PriorityOptionId = dto.PriorityOptionId;
-        task.DurationOptionId = dto.DurationOptionId;
-
-        // --- Categories: delta-opdatering (undgår UNIQUE-constraint og insert-før-delete rækkefølge) ---
+        // --- 2) Server-side kategori-delta (kun hvis klienten sendte CategoryIds) ---
         if (dto.CategoryIds != null)
         {
             var wanted = dto.CategoryIds
                 .Where(g => g != Guid.Empty)
                 .Distinct()
-                .ToHashSet();
+                .ToList();
 
-            // valider kun hvis der faktisk er ønskede kategorier
             if (wanted.Count > 0)
             {
-                var exists = await _context.Categories
+                var existing = await _context.Categories
                     .Where(c => wanted.Contains(c.Id))
                     .Select(c => c.Id)
                     .ToListAsync();
 
-                var missing = wanted.Except(exists).ToList();
+                var missing = wanted.Except(existing).ToList();
                 if (missing.Count > 0)
                     return BadRequest($"Unknown CategoryIds: {string.Join(", ", missing)}");
             }
 
-            // nuværende
-            var existingIds = task.TaskCategories.Select(tc => tc.CategoryId).ToList();
+            // Slet alle relationer der ikke længere ønskes (server-side)
+            await _context.TaskCategories
+                .Where(tc => tc.TaskId == id && !wanted.Contains(tc.CategoryId))
+                .ExecuteDeleteAsync();
 
-            // fjern dem der ikke længere ønskes
-            var toRemove = task.TaskCategories.Where(tc => !wanted.Contains(tc.CategoryId)).ToList();
-            if (toRemove.Count > 0)
+            // Hent nuværende efter sletning
+            var current = await _context.TaskCategories
+                .Where(tc => tc.TaskId == id)
+                .Select(tc => tc.CategoryId)
+                .ToListAsync();
+
+            var toAdd = wanted.Except(current).ToList();
+            if (toAdd.Count > 0)
             {
-                _context.TaskCategories.RemoveRange(toRemove);
-                // flush deletions først for at undgå UNIQUE-konflikt når vi tilføjer nye
+                _context.TaskCategories.AddRange(
+                    toAdd.Select(catId => new TaskCategory { TaskId = id, CategoryId = catId })
+                );
                 await _context.SaveChangesAsync();
             }
-
-            // tilføj dem der mangler
-            var toAdd = wanted.Except(existingIds).ToList();
-            foreach (var catId in toAdd)
-                task.TaskCategories.Add(new TaskCategory { TaskId = task.Id, CategoryId = catId });
         }
 
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateException ex)
-        {
-            // Tip: gør den evt. generisk igen når du er færdig med at teste
-            return StatusCode(500, ex.InnerException?.Message ?? ex.Message);
-        }
+        // Returnér opdateret “flat” task
+        var result = await _context.Tasks
+            .AsNoTracking()
+            .Where(t => t.Id == id)
+            .Select(t => new
+            {
+                t.Id,
+                t.Title,
+                t.Description,
+                t.RequestedBy,
+                t.CityId,
+                t.PriorityOptionId,
+                t.DurationOptionId,
+                t.IsAccepted,
+                t.AcceptedBy
+            })
+            .FirstAsync();
 
-        return Ok(new
-        {
-            task.Id,
-            task.Title,
-            task.Description,
-            task.RequestedBy,
-            task.CityId,
-            task.PriorityOptionId,
-            task.DurationOptionId,
-            task.IsAccepted,
-            task.AcceptedBy
-        });
+        return Ok(result);
     }
 
     // DELETE /api/tasks/{id}
