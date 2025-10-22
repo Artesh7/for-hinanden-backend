@@ -185,7 +185,9 @@ public async Task<IActionResult> GetOfferForUserOnTask(Guid taskId, string userI
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
                     Title = "Din opgave er accepteret!",
-                    Body = $"{sender.FirstName} {sender.LastName} har accepteret din opgave '{task.Title}'."
+                    Body = sender != null
+                        ? $"{sender.FirstName} {sender.LastName} har accepteret din opgave '{task.Title}'."
+                        : $"Din opgave '{task.Title}' er accepteret."
                 }
             };
 
@@ -258,7 +260,7 @@ public class OffersForOwnerController : ControllerBase
     [HttpGet("{ownerUserId}")]
     public async Task<IActionResult> GetAllForOwner(string ownerUserId)
     {
-        ownerUserId = (ownerUserId ?? string.Empty).Trim();
+        ownerUserId = ownerUserId.Trim();
 
         var items = await _context.TaskOffers
             // Join offers ↔ tasks (with city + categories)
@@ -304,5 +306,5 @@ public class OffersForOwnerController : ControllerBase
             .ToListAsync();
 
         return Ok(items);
-    }
+     }
 }
