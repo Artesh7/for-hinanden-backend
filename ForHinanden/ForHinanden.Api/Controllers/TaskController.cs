@@ -155,18 +155,25 @@ public class TaskController : ControllerBase
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
 
-        var notification = new
+        var fcmMessage = new FirebaseAdmin.Messaging.Message
         {
-            Id = task.Id,
-            Title = task.Title,
-            City = new { id = city.Id, name = city.Name },
-            Priority = new { id = priorityOpt.Id, name = priorityOpt.Name },
-            Duration = new { id = durationOpt.Id, name = durationOpt.Name },
-            Categories = existingCats.Select(c => new { id = c.Id, name = c.Name }).ToList(),
-            RequestedBy = task.RequestedBy,
-            CreatedAt = task.CreatedAt
+            Topic = "allUsers", 
+            Notification = new FirebaseAdmin.Messaging.Notification
+            {
+                Title = "En person i nærheden har brug for hjælp!",
+                Body = $"{task.Description}"
+            }
         };
-        await _hub.Clients.All.SendAsync("taskCreated", notification);
+
+        try
+        {
+            await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
+        }
+        catch (Exception ex)
+        {
+            // Log the error but don't fail the API call
+            Console.WriteLine($"FCM notification failed: {ex.Message}");
+        }
 
         return Created($"/api/tasks/{task.Id}", new
         {
