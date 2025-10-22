@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ForHinanden.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("feedback")]
     public class FeedbackController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -54,7 +54,31 @@ namespace ForHinanden.Api.Controllers
 
             _context.Feedbacks.Add(feedback);
             await _context.SaveChangesAsync();
+            
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == feedback.DeviceId);
+            if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
+            {
+                var fcmMessage = new FirebaseAdmin.Messaging.Message
+                {
+                    Token = user.DeviceId,
+                    Notification = new FirebaseAdmin.Messaging.Notification
+                    {
+                        Title = "Vi kan bruge din hjælp!",
+                        Body = "Har du 2 minutter til at hjælpe os med at forbedre appen?"
+                    }
+                };
 
+                try
+                {
+                    await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
+                }
+                catch (Exception ex)
+                {
+                    // Log the error but don't fail the API call
+                    Console.WriteLine($"FCM notification failed: {ex.Message}");
+                }
+            }
+            
             Console.WriteLine($"📣 Ny feedback fra {feedback.DeviceId}: {feedback.Rating}★ ({feedback.EmojiLabel})");
 
             return CreatedAtAction(nameof(GetOne), new { deviceId = feedback.DeviceId }, feedback);
