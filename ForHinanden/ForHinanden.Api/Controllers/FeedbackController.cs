@@ -62,7 +62,7 @@ namespace ForHinanden.Api.Controllers
             return CreatedAtAction(nameof(GetOne), new { deviceId = feedback.DeviceId }, feedback);
         }
 
-        [HttpGet("{deviceId}")]
+        [HttpGet("{deviceId}/notify")]
         public async Task<IActionResult> Notify()
         {
             string? deviceId = Request.Query["deviceId"];
