@@ -154,5 +154,38 @@ namespace ForHinanden.Api.Controllers
             Console.WriteLine($"✅ Feedback opdateret for {deviceId}");
             return Ok(feedback);
         }
+        // ✅ GET: /api/feedback/{deviceId}/notify
+        [HttpGet("{deviceId}/notify")]
+        public async Task<IActionResult> Notify(string deviceId)
+        {
+            if (string.IsNullOrWhiteSpace(deviceId))
+                return BadRequest("DeviceId er påkrævet.");
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == deviceId);
+            if (user is null)
+                return NotFound($"Ingen bruger med DeviceId '{deviceId}'.");
+
+            var fcmMessage = new FirebaseAdmin.Messaging.Message
+            {
+                Token = user.DeviceId, // DeviceId bruges som FCM-token
+                Notification = new FirebaseAdmin.Messaging.Notification
+                {
+                    Title = "📋 Vi vil gerne høre din mening!",
+                    Body = "Har du 2 minutter til at dele din oplevelse i ForHinanden? ❤️"
+                }
+            };
+
+            try
+            {
+                await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
+                Console.WriteLine($"✅ Feedback invitation sendt til {deviceId}");
+                return Ok(new { message = "Notifikation sendt." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Fejl ved FCM: {ex.Message}");
+                return StatusCode(500, new { message = "Kunne ikke sende notifikation", error = ex.Message });
+            }
+        }
     }
 }
