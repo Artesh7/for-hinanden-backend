@@ -44,16 +44,17 @@ public class TaskOffersController : ControllerBase
         {
             await _context.SaveChangesAsync();
         }
-        catch (DbUpdateException)
+        catch (Exception)
         {
             return Conflict("Du har allerede anmodet om at hjælpe på denne task.");
         }
         var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == offer.OfferedBy);
+        var sender = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);
         if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
         {
             var fcmMessage = new FirebaseAdmin.Messaging.Message
             {
-                Token = user.DeviceId, // DeviceId now used as FCM token
+                Token = sender.DeviceId, // DeviceId now used as FCM token
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
                     Title = $"{user.FirstName} {user.LastName} har tilbudt hjælp til din opgave '{task.Title}'.",
