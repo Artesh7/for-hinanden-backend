@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace ForHinanden.Api.Models;
 
@@ -10,11 +11,11 @@ public class TaskOffer
 
     public Guid TaskId { get; set; }
 
-    // Fully-qualified for at undgå forveksling med System.Threading.Tasks.Task
+    [JsonIgnore] // 🔴 vigtig: undgå reference-cyklus ved JSON-serialisering
     public ForHinanden.Api.Models.Task Task { get; set; } = null!;
 
-    public string OfferedBy { get; set; } = null!;   // bruger-id der anmoder
-    public string? Message { get; set; }             // frivillig
+    public string OfferedBy { get; set; } = null!;
+    public string? Message { get; set; }
     public OfferStatus Status { get; set; } = OfferStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

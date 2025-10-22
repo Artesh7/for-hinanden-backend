@@ -24,84 +24,126 @@ public class TaskOffersController : ControllerBase
     }
     
     // POST /api/tasks/{taskId}/offers
-    [HttpPost]
-    public async Task<IActionResult> CreateOffer(Guid taskId, [FromBody] CreateOfferDto dto)
+  [HttpPost]
+public async Task<IActionResult> CreateOffer(Guid taskId, [FromBody] CreateOfferDto dto)
+{
+    if (dto is null || string.IsNullOrWhiteSpace(dto.OfferedBy))
+        return BadRequest("OfferedBy er påkrævet.");
+
+    var task = await _context.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId);
+    if (task is null) return NotFound("Task findes ikke.");
+
+    // Må ikke byde på egen opgave
+    if (task.RequestedBy.Equals(dto.OfferedBy, StringComparison.OrdinalIgnoreCase))
+        return BadRequest("Du kan ikke tilbyde hjælp til din egen opgave.");
+
+    // Opgaven er allerede accepteret?
+    if (task.IsAccepted)
+        return Conflict("Opgaven er allerede accepteret.");
+
+    // Dublet-beskyttelse (udover DB-constraint)
+    var exists = await _context.TaskOffers
+        .AnyAsync(o => o.TaskId == taskId &&
+                       o.OfferedBy.ToLower() == dto.OfferedBy.ToLower());
+    if (exists)
+        return Conflict("Du har allerede anmodet om at hjælpe på denne task.");
+
+    var offer = new TaskOffer
     {
-        var task = await _context.Tasks.FindAsync(taskId);
-        if (task is null) return NotFound("Task findes ikke.");
+        TaskId = taskId,
+        OfferedBy = dto.OfferedBy.Trim(),
+        Message = string.IsNullOrWhiteSpace(dto.Message) ? null : dto.Message!.Trim(),
+        Status  = OfferStatus.Pending,
+        CreatedAt = DateTime.UtcNow
+    };
 
-        var offer = new TaskOffer
-        {
-            TaskId = taskId,
-            OfferedBy = dto.OfferedBy,
-            Message = dto.Message,
-            Status = OfferStatus.Pending,
-            CreatedAt = DateTime.UtcNow
-        };
+    _context.TaskOffers.Add(offer);
+    try
+    {
+        await _context.SaveChangesAsync();
+    }
+    catch (DbUpdateException)
+    {
+        // fx unique constraint (TaskId, OfferedBy)
+        return Conflict("Du har allerede anmodet om at hjælpe på denne task.");
+    }
 
-        _context.TaskOffers.Add(offer);
-        try
+    // --- FCM: send til opgavens ejer (RequestedBy), ikke hjælperen ---
+    try
+    {
+        var owner  = await _context.Users.AsNoTracking()
+                         .FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);
+        var helper = await _context.Users.AsNoTracking()
+                         .FirstOrDefaultAsync(u => u.DeviceId == offer.OfferedBy);
+
+        if (owner != null && !string.IsNullOrWhiteSpace(owner.DeviceId))
         {
-            await _context.SaveChangesAsync();
-        }
-        catch (Exception)
-        {
-            return Conflict("Du har allerede anmodet om at hjælpe på denne task.");
-        }
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == offer.OfferedBy);
-        var sender = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);
-        if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
-        {
+            var helperName = helper != null
+                ? $"{helper.FirstName} {helper.LastName}".Trim()
+                : offer.OfferedBy;
+
             var fcmMessage = new FirebaseAdmin.Messaging.Message
             {
-                Token = sender.DeviceId, // DeviceId now used as FCM token
+                Token = owner.DeviceId, // ✅ send til ejerens FCM-token
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
-                    Title = $"{user.FirstName} {user.LastName} har tilbudt hjælp til din opgave '{task.Title}'.",
-                    Body = $"{offer.Message}"
+                    Title = $"{helperName} har tilbudt hjælp til din opgave '{task.Title}'.",
+                    Body  = offer.Message ?? ""
                 }
             };
 
-            try
-            {
-                await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
-            }
-            catch (Exception ex)
-            {
-                // Log the error but don't fail the API call
-                Console.WriteLine($"FCM notification failed: {ex.Message}");
-            }
+            await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
         }
-
-        return Created($"/api/tasks/{taskId}/offers/{offer.Id}", offer);
     }
+    catch (Exception ex)
+    {
+        // Log, men lad ikke API-kaldet fejle
+        Console.WriteLine($"FCM notification failed: {ex.Message}");
+    }
+
+    // Returnér et DTO uden navigationer → ingen cyklus-risiko
+    var dtoOut = new ForHinanden.Api.Models.Dtos.TaskOfferDto(
+        offer.Id, offer.TaskId, offer.OfferedBy, offer.Message, offer.Status, offer.CreatedAt
+    );
+
+    return CreatedAtAction(nameof(GetOfferForUserOnTask),
+        new { taskId, userId = offer.OfferedBy }, dtoOut);
+}
+
     
-    // GET /api/tasks/{taskId}/offers
-    [HttpGet]
-    public async Task<IActionResult> GetOffersForTask(Guid taskId)
-    {
-        var exists = await _context.Tasks.AnyAsync(t => t.Id == taskId);
-        if (!exists) return NotFound("Task findes ikke.");
+// GET /api/tasks/{taskId}/offers
+[HttpGet]
+public async Task<IActionResult> GetOffersForTask(Guid taskId)
+{
+    var exists = await _context.Tasks.AnyAsync(t => t.Id == taskId);
+    if (!exists) return NotFound("Task findes ikke.");
 
-        var items = await _context.TaskOffers
-            .Where(o => o.TaskId == taskId)
-            .OrderBy(o => o.CreatedAt)
-            .ToListAsync();
+    var items = await _context.TaskOffers
+        .Where(o => o.TaskId == taskId)
+        .OrderBy(o => o.CreatedAt)
+        .Select(o => new ForHinanden.Api.Models.Dtos.TaskOfferDto(
+            o.Id, o.TaskId, o.OfferedBy, o.Message, o.Status, o.CreatedAt))
+        .ToListAsync();
 
-        return Ok(items);
-    }
+    return Ok(items);
+}
 
-    // GET /api/tasks/{taskId}/offers/by-user/{userId}
-    [HttpGet("by-user/{userId}")]
-    public async Task<IActionResult> GetOfferForUserOnTask(Guid taskId, string userId)
-    {
-        var offer = await _context.TaskOffers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.TaskId == taskId && o.OfferedBy.ToLower() == userId.ToLower());
+// GET /api/tasks/{taskId}/offers/by-user/{userId}
+[HttpGet("by-user/{userId}")]
+public async Task<IActionResult> GetOfferForUserOnTask(Guid taskId, string userId)
+{
+    var offer = await _context.TaskOffers
+        .AsNoTracking()
+        .FirstOrDefaultAsync(o => o.TaskId == taskId && o.OfferedBy.ToLower() == userId.ToLower());
 
-        if (offer is null) return NotFound();
-        return Ok(offer);
-    }
+    if (offer is null) return NotFound();
+
+    var dto = new ForHinanden.Api.Models.Dtos.TaskOfferDto(
+        offer.Id, offer.TaskId, offer.OfferedBy, offer.Message, offer.Status, offer.CreatedAt);
+
+    return Ok(dto);
+}
+
 
     // POST /api/tasks/{taskId}/offers/{offerId}/accept
    [HttpPost("{offerId:guid}/accept")]
