@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ForHinanden.Api.Data;
 using ForHinanden.Api.Models.Dtos;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace ForHinanden.Api.Controllers
@@ -55,7 +56,17 @@ namespace ForHinanden.Api.Controllers
             _context.Feedbacks.Add(feedback);
             await _context.SaveChangesAsync();
             
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == feedback.DeviceId);
+            
+            Console.WriteLine($"📣 Ny feedback fra {feedback.DeviceId}: {feedback.Rating}★ ({feedback.EmojiLabel})");
+
+            return CreatedAtAction(nameof(GetOne), new { deviceId = feedback.DeviceId }, feedback);
+        }
+
+        [HttpGet("{deviceId}")]
+        public async Task<IActionResult> Notify()
+        {
+            string? deviceId = Request.Query["deviceId"];
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == deviceId);
             if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
             {
                 var fcmMessage = new FirebaseAdmin.Messaging.Message
@@ -78,10 +89,8 @@ namespace ForHinanden.Api.Controllers
                     Console.WriteLine($"FCM notification failed: {ex.Message}");
                 }
             }
-            
-            Console.WriteLine($"📣 Ny feedback fra {feedback.DeviceId}: {feedback.Rating}★ ({feedback.EmojiLabel})");
 
-            return CreatedAtAction(nameof(GetOne), new { deviceId = feedback.DeviceId }, feedback);
+            return Ok();
         }
 
         // GET: /api/feedback
