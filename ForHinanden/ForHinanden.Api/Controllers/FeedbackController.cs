@@ -167,14 +167,18 @@ namespace ForHinanden.Api.Controllers
 
             var fcmMessage = new FirebaseAdmin.Messaging.Message
             {
-                Token = user.DeviceId, // DeviceId bruges som FCM-token
+                Token = user.DeviceId,
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
                     Title = "📋 Vi vil gerne høre din mening!",
                     Body = "Har du 2 minutter til at dele din oplevelse i ForHinanden? ❤️"
+                },
+                Data = new Dictionary<string, string>
+                {
+                    { "type", "feedback" },
+                    { "route", "/feed?showSurvey=true" } // 👈 vigtig: fortæl appen hvad den skal vise
                 }
             };
-
             try
             {
                 await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
