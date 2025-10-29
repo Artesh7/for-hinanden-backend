@@ -2,13 +2,12 @@
 using Microsoft.AspNetCore.Mvc;
 using ForHinanden.Api.Data;
 using ForHinanden.Api.Models.Dtos;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace ForHinanden.Api.Controllers
 {
     [ApiController]
-    [Route("feedback")]
+    [Route("api/[controller]")]
     public class FeedbackController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -55,42 +54,10 @@ namespace ForHinanden.Api.Controllers
 
             _context.Feedbacks.Add(feedback);
             await _context.SaveChangesAsync();
-            
-            
+
             Console.WriteLine($"📣 Ny feedback fra {feedback.DeviceId}: {feedback.Rating}★ ({feedback.EmojiLabel})");
 
             return CreatedAtAction(nameof(GetOne), new { deviceId = feedback.DeviceId }, feedback);
-        }
-
-        [HttpGet("{deviceId}/notify")]
-        public async Task<IActionResult> Notify()
-        {
-            string? deviceId = Request.Query["deviceId"];
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == deviceId);
-            if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
-            {
-                var fcmMessage = new FirebaseAdmin.Messaging.Message
-                {
-                    Token = user.DeviceId,
-                    Notification = new FirebaseAdmin.Messaging.Notification
-                    {
-                        Title = "Vi kan bruge din hjælp!",
-                        Body = "Har du 2 minutter til at hjælpe os med at forbedre appen?"
-                    }
-                };
-
-                try
-                {
-                    await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
-                }
-                catch (Exception ex)
-                {
-                    // Log the error but don't fail the API call
-                    Console.WriteLine($"FCM notification failed: {ex.Message}");
-                }
-            }
-
-            return Ok();
         }
 
         // GET: /api/feedback
