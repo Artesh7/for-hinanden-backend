@@ -86,6 +86,10 @@ public class MessageController : ControllerBase
                 {
                     Title = $"{user.FirstName} {user.LastName}:",
                     Body = $"{message.Content}"
+                },
+                Data = new Dictionary<string, string>
+                {
+                    { "type", "message" },
                 }
             };
 

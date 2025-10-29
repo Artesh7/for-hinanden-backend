@@ -89,6 +89,10 @@ public async Task<IActionResult> CreateOffer(Guid taskId, [FromBody] CreateOffer
                 {
                     Title = $"{helperName} har tilbudt hjælp til din opgave '{task.Title}'.",
                     Body  = offer.Message ?? ""
+                },
+                Data = new Dictionary<string, string>
+                {
+                    { "type", "offers" },
                 }
             };
 
@@ -188,6 +192,10 @@ public async Task<IActionResult> GetOfferForUserOnTask(Guid taskId, string userI
                     Body = sender != null
                         ? $"{sender.FirstName} {sender.LastName} har accepteret din hjælp '{task.Title}'."
                         : $"Din opgave '{task.Title}' er accepteret."
+                },
+                Data = new Dictionary<string, string>
+                {
+                    { "type", "message" },
                 }
             };
 
