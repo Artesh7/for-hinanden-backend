@@ -186,7 +186,7 @@ public async Task<IActionResult> GetOfferForUserOnTask(Guid taskId, string userI
                 {
                     Title = "Din opgave er accepteret!",
                     Body = sender != null
-                        ? $"{sender.FirstName} {sender.LastName} har accepteret din opgave '{task.Title}'."
+                        ? $"{sender.FirstName} {sender.LastName} har accepteret din hjælp '{task.Title}'."
                         : $"Din opgave '{task.Title}' er accepteret."
                 }
             };
