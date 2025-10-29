@@ -92,7 +92,7 @@ public async Task<IActionResult> CreateOffer(Guid taskId, [FromBody] CreateOffer
                 },
                 Data = new Dictionary<string, string>
                 {
-                    { "type", "offers" },
+                    { "type", "offer" },
                     { "taskId", task.Id.ToString()}
                 }
             };
