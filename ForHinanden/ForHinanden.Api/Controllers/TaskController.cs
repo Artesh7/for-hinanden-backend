@@ -95,12 +95,32 @@ public class TaskController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetTask(Guid id)
     {
-        var task = await _context.Tasks
-            .Include(t => t.TaskCategories)
-            .FirstOrDefaultAsync(t => t.Id == id);
-        if (task == null) return NotFound();
-        return Ok(task);
+        var dto = await _context.Tasks
+            .AsNoTracking()
+            .Where(t => t.Id == id)
+            .Include(t => t.City)
+            .Include(t => t.PriorityOption)
+            .Include(t => t.DurationOption)
+            .Include(t => t.TaskCategories).ThenInclude(tc => tc.Category)
+            .Select(t => new TaskListItemDto
+            {
+                Id = t.Id,
+                Title = t.Title,
+                Description = t.Description,
+                RequestedBy = t.RequestedBy,
+                City = t.City.Name,
+                Priority = t.PriorityOption.Name,
+                Duration = t.DurationOption.Name,
+                Categories = t.TaskCategories.Select(tc => tc.Category.Name).ToList(),
+                IsAccepted = t.IsAccepted,
+                AcceptedBy = t.AcceptedBy,
+                CreatedAt = t.CreatedAt
+            })
+            .SingleOrDefaultAsync();
+
+        return dto is null ? NotFound() : Ok(dto);
     }
+
 
     // POST /api/tasks
     [HttpPost]
