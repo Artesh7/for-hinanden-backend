@@ -194,7 +194,7 @@ public class TaskController : ControllerBase
                     { "type", "task" },
                     { "taskId", task.Id.ToString() },
                     { "title", task.Title ?? "" },
-                    { "route", "/feed?highlight=${task.Id}" }
+                    { "route", $"/feed?highlight={task.Id}" } 
                 }
             };
 
