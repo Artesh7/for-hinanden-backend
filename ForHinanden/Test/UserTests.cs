@@ -67,8 +67,7 @@ public class UserTests
     public void User_Defaults_Are_Correct()
     {
         var user = new User();
-        
-        Assert.NotEqual(System.Guid.Empty.ToString(), user.DeviceId);
+
         Assert.Null(user.DeviceId);
         Assert.Null(user.FirstName);
         Assert.Null(user.LastName);
@@ -76,6 +75,7 @@ public class UserTests
         Assert.Null(user.ProfilePictureUrl);
         Assert.Null(user.Bio);
     }
+
     
     [Fact]
     public void Can_Update_User_City()

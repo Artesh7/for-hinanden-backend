@@ -187,7 +187,14 @@ public class TaskController : ControllerBase
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
                     Title = "En person i nærheden har brug for hjælp!",
-                    Body = $"{task.Description}"
+                    Body = $"{task.Title}"
+                },
+                Data = new Dictionary<string, string>
+                {
+                    { "type", "task" },
+                    { "taskId", task.Id.ToString() },
+                    { "title", task.Title ?? "" },
+                    { "route", "/feed?highlight=${task.Id}" }
                 }
             };
 

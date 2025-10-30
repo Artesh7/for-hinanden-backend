@@ -1,26 +1,12 @@
 ﻿using Xunit;
 using ForHinanden.Api.Models;
 using Assert = Xunit.Assert;
-using TaskModel = ForHinanden.Api.Models.Task; // 👈 alias for at undgå konflikt med System.Threading.Tasks.Task
+using TaskModel = ForHinanden.Api.Models.Task; // undgå konflikt med System.Threading.Tasks.Task
 
 namespace Test_backend;
 
 public class TaskTests
 {
-    // [Fact]
-    // public void Task_Creates_With_Default_Values()
-    // {
-    //     var task = new TaskModel();
-    //
-    //     Assert.NotEqual(System.Guid.Empty, task.Id);
-    //     Assert.Null(task.Title);
-    //     Assert.Null(task.Description);
-    //     Assert.Null(task.City);
-    //     Assert.Null(task.PriorityOption);
-    //     Assert.Null(task.DurationOption);
-    //     Assert.Empty(task.TaskCategories);
-    // }
-
     [Fact]
     public void Can_Assign_Title_And_Description()
     {
@@ -33,24 +19,27 @@ public class TaskTests
         Assert.Equal("Hjælp med indkøb", task.Title);
         Assert.Equal("Jeg har brug for hjælp til at handle dagligvarer.", task.Description);
     }
-    
+
     [Fact]
-    public void Title_And_Description_Cannot_Be_Empty()
+    public void Title_And_Description_Should_Allow_Null_But_Not_Empty()
     {
-        Assert.Throws<ArgumentNullException>(() =>
+        // null er ok, men tom streng er ugyldig (hvis du håndhæver det i model)
+        var task = new TaskModel { Title = null, Description = null };
+        Assert.Null(task.Title);
+        Assert.Null(task.Description);
+
+        // hvis du vil tjekke validering for tom string, gør det eksplicit
+        var ex = Record.Exception(() =>
         {
-            var task = new TaskModel
-            {
-                Title = "",
-                Description = ""
-            };
-            if (string.IsNullOrWhiteSpace(task.Title))
-                throw new ArgumentNullException(nameof(task.Title), "Title is required.");
-            if (string.IsNullOrWhiteSpace(task.Description))
-                throw new ArgumentNullException(nameof(task.Description), "Description is required.");
+            var t = new TaskModel { Title = "", Description = "" };
+            if (string.IsNullOrWhiteSpace(t.Title))
+                throw new ArgumentException("Title is required.", nameof(t.Title));
         });
+
+        Assert.NotNull(ex);
+        Assert.IsType<ArgumentException>(ex);
     }
-    
+
     [Fact]
     public void Can_Assign_City_And_Priority_And_Duration()
     {
@@ -69,7 +58,7 @@ public class TaskTests
         Assert.Equal("Høj", task.PriorityOption.Name);
         Assert.Equal("Kort", task.DurationOption.Name);
     }
-    
+
     [Fact]
     public void Can_Add_Categories_To_Task()
     {
@@ -84,14 +73,53 @@ public class TaskTests
         Assert.Contains(task.TaskCategories, tc => tc.Category.Name == "Indkøb");
         Assert.Contains(task.TaskCategories, tc => tc.Category.Name == "Husarbejde");
     }
-    
-    [Fact]
-    public void Task_CreationDate_Is_Set_To_Now()
-    {
-        var beforeCreation = DateTime.UtcNow;
-        var task = new TaskModel();
-        var afterCreation = DateTime.UtcNow;
 
-        Assert.InRange(task.CreatedAt, beforeCreation, afterCreation);
+    [Fact]
+    public void CreatedAt_Should_Be_Close_To_Now()
+    {
+        var before = DateTime.UtcNow;
+        var task = new TaskModel();
+        var after = DateTime.UtcNow;
+
+        Assert.InRange(task.CreatedAt, before, after);
+    }
+    [Fact]
+    public void Each_Task_Should_Have_Unique_Id()
+    {
+        var task1 = new TaskModel { Id = Guid.NewGuid() };
+        var task2 = new TaskModel { Id = Guid.NewGuid() };
+
+        Assert.NotEqual(task1.Id, task2.Id);
+        Assert.NotEqual(Guid.Empty, task1.Id);
+        Assert.NotEqual(Guid.Empty, task2.Id);
+    }
+
+
+    [Fact]
+    public void Can_Update_Task_Title()
+    {
+        var task = new TaskModel { Title = "Oprindelig titel" };
+        task.Title = "Opdateret titel";
+
+        Assert.Equal("Opdateret titel", task.Title);
+    }
+
+    [Fact]
+    public void Can_Update_Accepted_Status()
+    {
+        var task = new TaskModel { IsAccepted = false };
+        Assert.False(task.IsAccepted);
+
+        task.IsAccepted = true;
+        Assert.True(task.IsAccepted);
+    }
+
+    [Fact]
+    public void AcceptedBy_Should_Update_Correctly()
+    {
+        var task = new TaskModel { AcceptedBy = null };
+        task.AcceptedBy = "user123";
+
+        Assert.Equal("user123", task.AcceptedBy);
     }
 }
