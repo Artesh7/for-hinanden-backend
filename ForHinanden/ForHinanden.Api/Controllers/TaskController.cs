@@ -179,34 +179,51 @@ public class TaskController : ControllerBase
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);
 
-        if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
+        // ✅ Send push-notifikation til ALLE undtagen den der oprettede opgaven
+        try
         {
-            var fcmMessage = new FirebaseAdmin.Messaging.Message
-            {
-                Topic = "allUsers",
-                Notification = new FirebaseAdmin.Messaging.Notification
-                {
-                    Title = "En person i nærheden har brug for hjælp!",
-                    Body = $"{task.Title}"
-                },
-                Data = new Dictionary<string, string>
-                {
-                    { "type", "task" },
-                    { "taskId", task.Id.ToString() },
-                    { "title", task.Title ?? "" },
-                    { "route", $"/feed?highlight={task.Id}" } 
-                }
-            };
+            // Hent alle brugere med gyldigt DeviceId undtagen den, der har oprettet tasken
+            var recipients = await _context.Users
+                .AsNoTracking()
+                .Where(u => !string.IsNullOrWhiteSpace(u.DeviceId) &&
+                            u.DeviceId != task.RequestedBy)
+                .Select(u => u.DeviceId)
+                .ToListAsync();
 
-            try
+            if (recipients.Count > 0)
             {
-                await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
+                var message = new FirebaseAdmin.Messaging.MulticastMessage
+                {
+                    Tokens = recipients,
+                    Notification = new FirebaseAdmin.Messaging.Notification
+                    {
+                        Title = "En person i nærheden har brug for hjælp!",
+                        Body = task.Title
+                    },
+                    Data = new Dictionary<string, string>
+                    {
+                        { "type", "task" },
+                        { "taskId", task.Id.ToString() },
+                        { "title", task.Title ?? "" },
+                        { "route", "feed" },
+                        { "click_action", "FLUTTER_NOTIFICATION_CLICK" }
+                    }
+                };
+
+                var response = await FirebaseAdmin.Messaging.FirebaseMessaging
+                    .DefaultInstance
+                    .SendMulticastAsync(message);
+
+                Console.WriteLine($"📢 Notification sendt til {response.SuccessCount}/{recipients.Count} brugere");
             }
-            catch (Exception ex)
+            else
             {
-                // Log the error but don't fail the API call
-                Console.WriteLine($"FCM notification failed: {ex.Message}");
+                Console.WriteLine("⚠️ Ingen modtagere fundet til task notification (kun opretteren selv).");
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ FCM notification failed: {ex.Message}");
         }
 
         return Created($"/api/tasks/{task.Id}", new
