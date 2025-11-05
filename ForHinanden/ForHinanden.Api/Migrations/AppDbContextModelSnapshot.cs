@@ -120,6 +120,38 @@ namespace ForHinanden.Api.Migrations
                     b.ToTable("Feedback");
                 });
 
+            modelBuilder.Entity("ForHinanden.Api.Models.HelpRelation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserA")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UserB")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId", "UserA", "UserB")
+                        .IsUnique();
+
+                    b.HasIndex("UserA", "UserB");
+
+                    b.ToTable("HelpRelations");
+                });
+
             modelBuilder.Entity("ForHinanden.Api.Models.Message", b =>
                 {
                     b.Property<Guid>("Id")

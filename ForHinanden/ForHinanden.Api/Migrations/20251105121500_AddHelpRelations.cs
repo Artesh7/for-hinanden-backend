@@ -16,8 +16,8 @@ namespace ForHinanden.Api.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserA = table.Column<string>(type: "text", nullable: false),
-                    UserB = table.Column<string>(type: "text", nullable: false),
+                    UserA = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    UserB = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     TaskId = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -46,4 +46,3 @@ namespace ForHinanden.Api.Migrations
         }
     }
 }
-
