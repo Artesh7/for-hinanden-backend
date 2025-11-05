@@ -180,6 +180,35 @@ public class TaskOffersController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        // NEW: Persist help relation between requester and accepted helper (undirected)
+        try
+        {
+            var req = task.RequestedBy?.Trim() ?? string.Empty;
+            var hel = task.AcceptedBy?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(req) && !string.IsNullOrWhiteSpace(hel))
+            {
+                var a = string.CompareOrdinal(req, hel) <= 0 ? req : hel;
+                var b = string.CompareOrdinal(req, hel) <= 0 ? hel : req;
+
+                var exists = await _context.HelpRelations
+                    .AsNoTracking()
+                    .AnyAsync(hr => hr.TaskId == task.Id && hr.UserA == a && hr.UserB == b);
+                if (!exists)
+                {
+                    _context.HelpRelations.Add(new HelpRelation
+                    {
+                        Id = Guid.NewGuid(),
+                        TaskId = task.Id,
+                        UserA = a,
+                        UserB = b,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    await _context.SaveChangesAsync();
+                }
+            }
+        }
+        catch { /* ignore relation persistence errors */ }
+
         // --- FCM: send resultat til hjælperen (den accepterede) ---
         var helper = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == offer.OfferedBy);
         var owner  = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);

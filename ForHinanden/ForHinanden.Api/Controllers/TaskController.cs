@@ -208,6 +208,36 @@ public class TaskController : ControllerBase
         task.AcceptedBy = body.AcceptedBy.Trim();
 
         await _context.SaveChangesAsync();
+
+        // NEW: Persist help relation between requester and helper (undirected)
+        try
+        {
+            var req = task.RequestedBy?.Trim() ?? string.Empty;
+            var hel = task.AcceptedBy?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(req) && !string.IsNullOrWhiteSpace(hel))
+            {
+                var a = string.CompareOrdinal(req, hel) <= 0 ? req : hel;
+                var b = string.CompareOrdinal(req, hel) <= 0 ? hel : req;
+
+                var exists = await _context.HelpRelations
+                    .AsNoTracking()
+                    .AnyAsync(hr => hr.TaskId == task.Id && hr.UserA == a && hr.UserB == b);
+                if (!exists)
+                {
+                    _context.HelpRelations.Add(new HelpRelation
+                    {
+                        Id = Guid.NewGuid(),
+                        TaskId = task.Id,
+                        UserA = a,
+                        UserB = b,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    await _context.SaveChangesAsync();
+                }
+            }
+        }
+        catch { /* ignore relation persistence errors */ }
+
         return Ok(task);
     }
 

@@ -117,6 +117,47 @@ public class UsersController : ControllerBase
         return user is null ? NotFound() : Ok(user);
     }
 
+    // NEW: GET /api/users/{deviceId}/peers  — users you've helped with (undirected)
+    [HttpGet("{deviceId}/peers")]
+    public async Task<IActionResult> GetPeers(string deviceId)
+    {
+        if (string.IsNullOrWhiteSpace(deviceId)) return BadRequest("DeviceId is required.");
+
+        var peers = await _context.HelpRelations
+            .AsNoTracking()
+            .Where(hr => hr.UserA == deviceId || hr.UserB == deviceId)
+            .GroupBy(hr => hr.UserA == deviceId ? hr.UserB : hr.UserA)
+            .Select(g => new
+            {
+                peerId = g.Key,
+                taskCount = g.Count(),
+                firstHelpedAt = g.Min(x => x.CreatedAt),
+                lastHelpedAt = g.Max(x => x.CreatedAt),
+                taskIds = g.Select(x => x.TaskId).Distinct().ToList()
+            })
+            .OrderByDescending(x => x.lastHelpedAt)
+            .ToListAsync();
+
+        return Ok(peers);
+    }
+
+    // NEW: GET /api/users/{deviceId}/has-helped-with/{otherId} — quick boolean
+    [HttpGet("{deviceId}/has-helped-with/{otherId}")]
+    public async Task<IActionResult> HasHelpedWith(string deviceId, string otherId)
+    {
+        if (string.IsNullOrWhiteSpace(deviceId) || string.IsNullOrWhiteSpace(otherId))
+            return BadRequest("Both deviceId and otherId are required.");
+
+        var a = string.CompareOrdinal(deviceId, otherId) <= 0 ? deviceId : otherId;
+        var b = string.CompareOrdinal(deviceId, otherId) <= 0 ? otherId : deviceId;
+
+        var exists = await _context.HelpRelations
+            .AsNoTracking()
+            .AnyAsync(hr => hr.UserA == a && hr.UserB == b);
+
+        return Ok(new { hasRelation = exists });
+    }
+
     // POST /api/users/photo  (upload/erstat profilbillede – deviceId + file i form-data)
     // Nu: uploader til Cloudinary i stedet for lokal disk.
     [HttpPost("photo")]

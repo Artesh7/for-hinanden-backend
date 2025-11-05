@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Rating> Ratings => Set<Rating>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<TaskOffer> TaskOffers => Set<TaskOffer>();
+    public DbSet<HelpRelation> HelpRelations => Set<HelpRelation>(); // NEW
 
     // Lookups
     public DbSet<City> Cities => Set<City>();
@@ -66,5 +67,14 @@ public class AppDbContext : DbContext
         // NEW: unique names for option tables
         modelBuilder.Entity<PriorityOption>().HasIndex(p => p.Name).IsUnique();
         modelBuilder.Entity<DurationOption>().HasIndex(d => d.Name).IsUnique();
+
+        // NEW: HelpRelation unique per task and undirected pair (UserA <= UserB)
+        modelBuilder.Entity<HelpRelation>()
+            .HasIndex(hr => new { hr.TaskId, hr.UserA, hr.UserB })
+            .IsUnique();
+
+        // Optional: fast lookup of peers for a user
+        modelBuilder.Entity<HelpRelation>()
+            .HasIndex(hr => new { hr.UserA, hr.UserB });
     }
 }
