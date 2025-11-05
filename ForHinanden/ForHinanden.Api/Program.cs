@@ -56,6 +56,9 @@ else
 // ---------------- SignalR ----------------
 builder.Services.AddSignalR();
 
+// Register chat activity registry (used by Hub + controllers)
+builder.Services.AddSingleton<ActiveChatRegistry>();
+
 // ---------------- Cloudinary ----------------
 // Register a development-friendly no-op implementation when CLOUDINARY_URL is missing
 var cloudinaryUrl = Environment.GetEnvironmentVariable("CLOUDINARY_URL");
@@ -100,7 +103,11 @@ else
         Credential = GoogleCredential.FromJson(firebaseKeyJson)
     });
 }
-//d
+
+// ---------------- Background jobs ----------------
+// Twice-daily task digests per user/city
+builder.Services.AddHostedService<ForHinanden.Api.Services.TaskDigestService>();
+
 // ---------------- Build app ----------------
 var app = builder.Build();
 

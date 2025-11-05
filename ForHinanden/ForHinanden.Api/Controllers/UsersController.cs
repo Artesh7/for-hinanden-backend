@@ -40,7 +40,8 @@ public class UsersController : ControllerBase
             LastName  = dto.LastName,
             City      = dto.City,
             ProfilePictureUrl = dto.ProfilePictureUrl, // kan være null
-            Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim()
+            Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim(),
+            IsAnonymous = dto.IsAnonymous
         };
 
         _context.Users.Add(user);
@@ -74,6 +75,10 @@ public class UsersController : ControllerBase
         // null = ingen ændring, "" = sæt til null
         if (dto.Bio != null)
             user.Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim();
+
+        // null = ingen ændring
+        if (dto.IsAnonymous.HasValue)
+            user.IsAnonymous = dto.IsAnonymous.Value;
 
         await _context.SaveChangesAsync();
         return Ok(user);
@@ -248,4 +253,3 @@ public class UsersController : ControllerBase
         }
     }
 }
-

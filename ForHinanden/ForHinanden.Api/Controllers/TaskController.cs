@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Linq;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
@@ -175,39 +175,7 @@ public class TaskController : ControllerBase
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
         
-        var user = await _context.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.DeviceId == task.RequestedBy);
-
-        if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
-        {
-            var fcmMessage = new FirebaseAdmin.Messaging.Message
-            {
-                Topic = "allUsers",
-                Notification = new FirebaseAdmin.Messaging.Notification
-                {
-                    Title = "En person i nærheden har brug for hjælp!",
-                    Body = $"{task.Title}"
-                },
-                Data = new Dictionary<string, string>
-                {
-                    { "type", "task" },
-                    { "taskId", task.Id.ToString() },
-                    { "title", task.Title ?? "" },
-                    { "route", $"/feed?highlight={task.Id}" } 
-                }
-            };
-
-            try
-            {
-                await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(fcmMessage);
-            }
-            catch (Exception ex)
-            {
-                // Log the error but don't fail the API call
-                Console.WriteLine($"FCM notification failed: {ex.Message}");
-            }
-        }
+        // Removed immediate broadcast FCM push; tasks will be included in twice-daily digests instead.
 
         return Created($"/api/tasks/{task.Id}", new
         {

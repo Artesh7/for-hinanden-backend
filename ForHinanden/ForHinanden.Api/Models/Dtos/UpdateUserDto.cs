@@ -16,4 +16,7 @@ public class UpdateUserDto
     /// Samme semantik som ovenfor: null = ingen ændring, "" = sæt til null.
     /// </summary>
     public string? Bio { get; set; }
+
+    // NEW: anonymitet kan toggles; null = ingen ændring
+    public bool? IsAnonymous { get; set; }
 }

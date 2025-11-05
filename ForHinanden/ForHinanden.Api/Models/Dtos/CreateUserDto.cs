@@ -10,4 +10,7 @@ public class CreateUserDto
 
     // Valgfri
     public string? Bio { get; set; }
+
+    // NEW: anonym tilvalg ved oprettelse (default false)
+    public bool IsAnonymous { get; set; } = false;
 }

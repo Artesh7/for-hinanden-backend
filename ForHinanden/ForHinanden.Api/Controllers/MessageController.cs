@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ForHinanden.Api.Data;
 using ForHinanden.Api.Models;
+using ForHinanden.Api.Services;
 
 namespace ForHinanden.Api.Controllers;
 
@@ -38,7 +39,7 @@ public class MessageController : ControllerBase
     
     // POST: api/messages (kun hvis task er accepteret, og kun mellem de to parter)
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateMessageDto dto)
+    public async Task<IActionResult> Create([FromBody] CreateMessageDto dto, [FromServices] ActiveChatRegistry chatRegistry)
     {
         if (dto is null) return BadRequest("Body is required.");
         if (dto.TaskId == Guid.Empty) return BadRequest("taskId is required.");
@@ -75,21 +76,29 @@ public class MessageController : ControllerBase
         _context.Messages.Add(message);
         await _context.SaveChangesAsync();
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == message.Sender);
-        var receiver = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == message.Receiver);
-        if (user != null && !string.IsNullOrWhiteSpace(user.DeviceId))
+        var senderUser = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == message.Sender);
+        var receiverUser = await _context.Users.FirstOrDefaultAsync(u => u.DeviceId == message.Receiver);
+
+        // Skip push if receiver is currently in chat with sender on same task
+        var receiverInChat = chatRegistry?.IsInChatWith(message.Receiver, message.Sender, message.TaskId) ?? false;
+
+        if (!receiverInChat && senderUser != null && receiverUser != null && !string.IsNullOrWhiteSpace(receiverUser.DeviceId))
         {
+            var title = $"{senderUser.FirstName} {senderUser.LastName}:";
+
             var fcmMessage = new FirebaseAdmin.Messaging.Message
             {
-                Token = receiver.DeviceId, // DeviceId now used as FCM token
+                Token = receiverUser.DeviceId, // DeviceId now used as FCM token
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
-                    Title = $"{user.FirstName} {user.LastName}:",
+                    Title = title,
                     Body = $"{message.Content}"
                 },
                 Data = new Dictionary<string, string>
                 {
                     { "type", "message" },
+                    { "senderId", senderUser.DeviceId },
+                    { "taskId", message.TaskId.ToString() }
                 }
             };
 

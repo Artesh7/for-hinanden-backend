@@ -37,7 +37,7 @@ namespace Test_backend.Controllers
             };
 
             // Act
-            var result = await controller.Create(dto);
+            var result = await controller.Create(dto, null);
             var obj = result as ObjectResult;
 
             // Assert
@@ -69,7 +69,7 @@ namespace Test_backend.Controllers
             };
 
             // Act
-            var result = await controller.Create(dto);
+            var result = await controller.Create(dto, null);
             var obj = result as ObjectResult;
 
             // Assert

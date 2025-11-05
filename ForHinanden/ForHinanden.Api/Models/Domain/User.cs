@@ -29,4 +29,7 @@ public class User
     /// </summary>
     [MaxLength(500)]
     public string? Bio { get; set; }
+
+    // NEW: anonym brugerflag (kan toggles af brugeren)
+    public bool IsAnonymous { get; set; } = false;
 }
