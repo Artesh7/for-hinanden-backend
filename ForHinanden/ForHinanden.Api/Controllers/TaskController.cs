@@ -9,6 +9,7 @@ using TaskModel = ForHinanden.Api.Models.Task;
 using Microsoft.AspNetCore.SignalR;
 using ForHinanden.Api.Hubs;
 using ForHinanden.Api.Models.Dtos;
+using ProfanityFilter;
 
 namespace ForHinanden.Api.Controllers;
 
@@ -126,7 +127,25 @@ public class TaskController : ControllerBase
     [HttpPost]
     public async System.Threading.Tasks.Task<IActionResult> Create([FromBody] CreateTaskDto dto)
     {
-         
+        var filter = new ProfanityFilter.ProfanityFilter();
+
+        var danskeBandeord = new[]
+        {
+            "lort", "pis", "fuck", "fandeme", "forbandet", "skide", "kraftedeme",
+            "satan", "helvede", "idiot", "spasser", "mongol", "bøsse", "kælling",
+            "perker", "svin", "nar", "torsk", "fucker", "fisse", "pik", "fitta",
+            "luder", "klaphat", "skvat", "fjols", "taber", "narrøv", "kæft",
+            "røv", "røvhul", "lorte", "lortemand", "idioter", "pikhoved", "skank",
+            "fuckface", "dumme", "kræft", "skiderik", "ædrik", "bryster", "fucker",
+            "fucking", "svans", "skod", "bræk", "hestepik", "tåbe", "pikhue",
+            "lortebunke", "pikfjæs", "fissehår", "diller", "pat", "kusse", "luderstøvle", "sharmuta"
+        };
+
+        filter.AddProfanity(danskeBandeord);
+        if (filter.ContainsProfanity(dto.Title) || filter.ContainsProfanity(dto.Description))
+        {
+            return BadRequest("Opgaveteksten indeholder upassende ord. Ret venligst teksten.");
+        }
         if (dto is null) return BadRequest("Body is required.");
         if (dto.CityId == Guid.Empty) return BadRequest("CityId is required.");
         if (dto.PriorityOptionId == Guid.Empty) return BadRequest("PriorityOptionId is required.");
