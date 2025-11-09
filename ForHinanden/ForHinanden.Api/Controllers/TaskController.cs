@@ -9,6 +9,7 @@ using TaskModel = ForHinanden.Api.Models.Task;
 using Microsoft.AspNetCore.SignalR;
 using ForHinanden.Api.Hubs;
 using ForHinanden.Api.Models.Dtos;
+using BadWordsFilter;
 
 namespace ForHinanden.Api.Controllers;
 
@@ -126,6 +127,10 @@ public class TaskController : ControllerBase
     [HttpPost]
     public async System.Threading.Tasks.Task<IActionResult> Create([FromBody] CreateTaskDto dto)
     {
+         if (dto is null) return BadRequest("Body is required.");
+         var filter = new BadWordsFilter.BadWordsFilter();
+         if (filter.ContainsBadWord(dto.Title) || filter.ContainsBadWord(dto.Description))
+         return BadRequest("Opgaveteksten indeholder upassende ord.");
         if (dto is null) return BadRequest("Body is required.");
         if (dto.CityId == Guid.Empty) return BadRequest("CityId is required.");
         if (dto.PriorityOptionId == Guid.Empty) return BadRequest("PriorityOptionId is required.");
