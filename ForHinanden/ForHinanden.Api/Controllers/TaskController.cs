@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using ForHinanden.Api.Data;
 using ForHinanden.Api.Models;
@@ -9,7 +10,6 @@ using TaskModel = ForHinanden.Api.Models.Task;
 using Microsoft.AspNetCore.SignalR;
 using ForHinanden.Api.Hubs;
 using ForHinanden.Api.Models.Dtos;
-using ProfanityFilter;
 
 namespace ForHinanden.Api.Controllers;
 
@@ -18,7 +18,47 @@ namespace ForHinanden.Api.Controllers;
 public class TaskController : ControllerBase
 {
     private readonly AppDbContext _context;
+
     private readonly IHubContext<NotificationsHub> _hub;
+
+// Deterministisk helords-liste (kun dansk) — ingen fuzzy matching, intet indbygget engelsk ordsæt.
+    private static readonly string[] DkProfanityWords = new[]
+    {
+        "lort", "pis", "fuck", "fandeme", "forbandet", "skide", "kraftedeme",
+        "satan", "helvede", "idiot", "spasser", "mongol", "bøsse", "kælling",
+        "perker", "svin", "nar", "torsk", "fucker", "fisse", "pik", "fitta",
+        "luder", "klaphat", "skvat", "fjols", "taber", "narrøv", "kæft",
+        "røv", "røvhul", "lorte", "lortemand", "idioter", "pikhoved", "skank",
+        "dumme", "kræft", "skiderik", "ædrik", "bryster", "fucking", "svans",
+        "skod", "bræk", "hestepik", "tåbe", "pikhue", "lortebunke", "pikfjæs",
+        "fissehår", "diller", "pat", "kusse", "luderstøvle", "sharmuta", "fuckface"
+    };
+
+// Kompileret helords-regex, case-insensitive og kultur-invariant.
+    private static readonly Regex DkProfanityRegex = new(
+        @"\b(?:" + string.Join("|", DkProfanityWords.Select(Regex.Escape)) + @")\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled
+    );
+
+// Allow-liste til ord vi eksplicit vil tillade (bl.a. “spac”).
+    private static readonly HashSet<string> AllowList = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "spac", "spac'en", "spac'en.", "spac’er", "spac’ens", "spac-aktie", "spac’erne"
+    };
+
+    private static bool ContainsDkProfanity(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        foreach (Match m in DkProfanityRegex.Matches(text))
+        {
+            // Hvis det matchede ord er eksplicit tilladt, ignorerer vi det; ellers er det bandeord.
+            if (!AllowList.Contains(m.Value))
+                return true;
+        }
+
+        return false;
+    }
 
     public TaskController(AppDbContext context, IHubContext<NotificationsHub> hub)
     {
@@ -26,7 +66,7 @@ public class TaskController : ControllerBase
         _hub = hub;
     }
 
-    // GET /api/tasks
+// GET /api/tasks
     [HttpGet]
     public async System.Threading.Tasks.Task<IActionResult> GetAll()
     {
@@ -59,7 +99,7 @@ public class TaskController : ControllerBase
         return Ok(items);
     }
 
-    // GET /api/tasks/options
+// GET /api/tasks/options
     [HttpGet("options")]
     public async System.Threading.Tasks.Task<IActionResult> GetOptions()
     {
@@ -92,9 +132,9 @@ public class TaskController : ControllerBase
         return Ok(new { priorities, durations, cities, categories });
     }
 
-    // GET /api/tasks/{id}
+// GET /api/tasks/{id}
     [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetTask(Guid id)
+    public async System.Threading.Tasks.Task<IActionResult> GetTask(Guid id)
     {
         var dto = await _context.Tasks
             .AsNoTracking()
@@ -122,34 +162,20 @@ public class TaskController : ControllerBase
         return dto is null ? NotFound() : Ok(dto);
     }
 
-
-    // POST /api/tasks
+// POST /api/tasks
     [HttpPost]
     public async System.Threading.Tasks.Task<IActionResult> Create([FromBody] CreateTaskDto dto)
     {
-        var filter = new ProfanityFilter.ProfanityFilter();
-
-        var danskeBandeord = new[]
-        {
-            "lort", "pis", "fuck", "fandeme", "forbandet", "skide", "kraftedeme",
-            "satan", "helvede", "idiot", "spasser", "mongol", "bøsse", "kælling",
-            "perker", "svin", "nar", "torsk", "fucker", "fisse", "pik", "fitta",
-            "luder", "klaphat", "skvat", "fjols", "taber", "narrøv", "kæft",
-            "røv", "røvhul", "lorte", "lortemand", "idioter", "pikhoved", "skank",
-            "fuckface", "dumme", "kræft", "skiderik", "ædrik", "bryster", "fucker",
-            "fucking", "svans", "skod", "bræk", "hestepik", "tåbe", "pikhue",
-            "lortebunke", "pikfjæs", "fissehår", "diller", "pat", "kusse", "luderstøvle", "sharmuta"
-        };
-
-        filter.AddProfanity(danskeBandeord);
-        if (filter.ContainsProfanity(dto.Title) || filter.ContainsProfanity(dto.Description))
-        {
-            return BadRequest("Opgaveteksten indeholder upassende ord. Ret venligst teksten.");
-        }
         if (dto is null) return BadRequest("Body is required.");
         if (dto.CityId == Guid.Empty) return BadRequest("CityId is required.");
         if (dto.PriorityOptionId == Guid.Empty) return BadRequest("PriorityOptionId is required.");
         if (dto.DurationOptionId == Guid.Empty) return BadRequest("DurationOptionId is required.");
+
+        // Deterministisk helords-tjek (ingen fuzzy/approximate matching).
+        if (ContainsDkProfanity(dto.Title) || ContainsDkProfanity(dto.Description))
+        {
+            return BadRequest("Opgaveteksten indeholder upassende ord. Ret venligst teksten.");
+        }
 
         var city = await _context.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Id == dto.CityId);
         if (city is null) return BadRequest("Invalid CityId.");
@@ -194,7 +220,7 @@ public class TaskController : ControllerBase
 
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
-        
+
         // Removed immediate broadcast FCM push; tasks will be included in twice-daily digests instead.
 
         return Created($"/api/tasks/{task.Id}", new
@@ -213,7 +239,7 @@ public class TaskController : ControllerBase
         });
     }
 
-    // (Legacy accept endpoint)
+// (Legacy accept endpoint)
     [HttpPost("{id:guid}/accept")]
     public async System.Threading.Tasks.Task<IActionResult> AcceptLegacy(Guid id, [FromBody] AcceptTaskDto body)
     {
@@ -256,14 +282,17 @@ public class TaskController : ControllerBase
                 }
             }
         }
-        catch { /* ignore relation persistence errors */ }
+        catch
+        {
+            /* ignore relation persistence errors */
+        }
 
         return Ok(task);
     }
 
-    // PUT /api/tasks/{id} — server-side update + server-side kategori-delta
+// PUT /api/tasks/{id} — server-side update + server-side kategori-delta
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
+    public async System.Threading.Tasks.Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
     {
         if (dto is null || id != dto.Id)
             return BadRequest("Invalid request body or mismatched task id.");
@@ -288,10 +317,10 @@ public class TaskController : ControllerBase
         var rows = await _context.Tasks
             .Where(t => t.Id == id)
             .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.Title,        t => dto.Title != null       ? dto.Title.Trim()       : t.Title)
-                .SetProperty(t => t.Description,  t => dto.Description != null ? dto.Description.Trim() : t.Description)
-                .SetProperty(t => t.RequestedBy,  t => dto.RequestedBy != null ? dto.RequestedBy.Trim() : t.RequestedBy)
-                .SetProperty(t => t.CityId,           t => dto.CityId)
+                .SetProperty(t => t.Title, t => dto.Title != null ? dto.Title.Trim() : t.Title)
+                .SetProperty(t => t.Description, t => dto.Description != null ? dto.Description.Trim() : t.Description)
+                .SetProperty(t => t.RequestedBy, t => dto.RequestedBy != null ? dto.RequestedBy.Trim() : t.RequestedBy)
+                .SetProperty(t => t.CityId, t => dto.CityId)
                 .SetProperty(t => t.PriorityOptionId, t => dto.PriorityOptionId)
                 .SetProperty(t => t.DurationOptionId, t => dto.DurationOptionId)
             );
@@ -360,9 +389,9 @@ public class TaskController : ControllerBase
         return Ok(result);
     }
 
-    // DELETE /api/tasks/{id}
+// DELETE /api/tasks/{id}
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteTask(Guid id)
+    public async System.Threading.Tasks.Task<IActionResult> DeleteTask(Guid id)
     {
         var task = await _context.Tasks.FindAsync(id);
         if (task is null) return NotFound();
@@ -373,3 +402,4 @@ public class TaskController : ControllerBase
         return NoContent();
     }
 }
+
