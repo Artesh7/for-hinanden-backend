@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using CloudinaryDotNet;              // <-- Cloudinary
 using CloudinaryDotNet.Actions;      // <-- Cloudinary
 using ForHinanden.Api.Services;
+using System.Collections.Generic;
 
 namespace ForHinanden.Api.Controllers;
 
@@ -19,6 +20,17 @@ public class UsersController : ControllerBase
 {
     private readonly AppDbContext _context;
     public UsersController(AppDbContext context) => _context = context;
+
+    // GET /api/users  – return all users
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<User>>> GetAll()
+    {
+        var users = await _context.Users
+            .AsNoTracking()
+            .ToListAsync();
+
+        return Ok(users);
+    }
 
     // POST /api/users  (opret ny bruger; fejler hvis deviceId findes)
     [HttpPost]
