@@ -24,9 +24,11 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: |
+          dotnet restore ./ForHinanden.Api/ForHinanden.Api.csproj
+          dotnet restore ./Test/Test.csproj
 
-      - name: Build project
+      - name: Build backend
         run: dotnet build ./ForHinanden.Api/ForHinanden.Api.csproj --configuration Release --no-restore
 
       - name: Run tests
