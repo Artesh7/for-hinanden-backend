@@ -71,7 +71,7 @@ namespace ForHinanden.Api.Controllers
 
             return Ok(feedbacks);
         }
-//vvvvv
+//vvvvv7
         // GET: /api/feedback/{deviceId}
         [HttpGet("{deviceId}")]
         public async Task<IActionResult> GetOne(string deviceId)
