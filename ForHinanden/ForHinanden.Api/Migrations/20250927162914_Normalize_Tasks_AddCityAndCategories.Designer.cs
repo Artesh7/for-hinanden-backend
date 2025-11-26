@@ -3,6 +3,7 @@ using System;
 using ForHinanden.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ForHinanden.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250927162914_Normalize_Tasks_AddCityAndCategories")]
+    partial class Normalize_Tasks_AddCityAndCategories
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -58,100 +61,6 @@ namespace ForHinanden.Api.Migrations
                     b.ToTable("Cities");
                 });
 
-            modelBuilder.Entity("ForHinanden.Api.Models.DurationOption", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("DurationOptions");
-                });
-
-            modelBuilder.Entity("ForHinanden.Api.Models.Feedback", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeviceId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("EmojiLabel")
-                        .HasColumnType("text");
-
-                    b.Property<string>("FeedbackText")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ImprovementText")
-                        .HasColumnType("text");
-
-                    b.Property<int>("Rating")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("VolunteerOpinion")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DeviceId")
-                        .IsUnique();
-
-                    b.ToTable("Feedback");
-                });
-
-            modelBuilder.Entity("ForHinanden.Api.Models.HelpRelation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("UserA")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("UserB")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TaskId", "UserA", "UserB")
-                        .IsUnique();
-
-                    b.HasIndex("UserA", "UserB");
-
-                    b.ToTable("HelpRelations");
-                });
-
             modelBuilder.Entity("ForHinanden.Api.Models.Message", b =>
                 {
                     b.Property<Guid>("Id")
@@ -181,27 +90,6 @@ namespace ForHinanden.Api.Migrations
                     b.HasIndex("TaskId");
 
                     b.ToTable("Messages");
-                });
-
-            modelBuilder.Entity("ForHinanden.Api.Models.PriorityOption", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("PriorityOptions");
                 });
 
             modelBuilder.Entity("ForHinanden.Api.Models.Rating", b =>
@@ -254,14 +142,14 @@ namespace ForHinanden.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("DurationOptionId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("Duration")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("IsAccepted")
                         .HasColumnType("boolean");
 
-                    b.Property<Guid>("PriorityOptionId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
 
                     b.Property<string>("RequestedBy")
                         .IsRequired()
@@ -275,11 +163,7 @@ namespace ForHinanden.Api.Migrations
 
                     b.HasIndex("CityId");
 
-                    b.HasIndex("DurationOptionId");
-
-                    b.HasIndex("PriorityOptionId");
-
-                    b.ToTable("Tasks");
+                    b.ToTable("HelpRequests");
                 });
 
             modelBuilder.Entity("ForHinanden.Api.Models.TaskCategory", b =>
@@ -339,10 +223,6 @@ namespace ForHinanden.Api.Migrations
                     b.Property<string>("DeviceId")
                         .HasColumnType("text");
 
-                    b.Property<string>("Bio")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
                     b.Property<string>("City")
                         .IsRequired()
                         .HasColumnType("text");
@@ -350,9 +230,6 @@ namespace ForHinanden.Api.Migrations
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<bool>("IsAnonymous")
-                        .HasColumnType("boolean");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -385,23 +262,7 @@ namespace ForHinanden.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("ForHinanden.Api.Models.DurationOption", "DurationOption")
-                        .WithMany()
-                        .HasForeignKey("DurationOptionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ForHinanden.Api.Models.PriorityOption", "PriorityOption")
-                        .WithMany()
-                        .HasForeignKey("PriorityOptionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("City");
-
-                    b.Navigation("DurationOption");
-
-                    b.Navigation("PriorityOption");
                 });
 
             modelBuilder.Entity("ForHinanden.Api.Models.TaskCategory", b =>
@@ -426,7 +287,7 @@ namespace ForHinanden.Api.Migrations
             modelBuilder.Entity("ForHinanden.Api.Models.TaskOffer", b =>
                 {
                     b.HasOne("ForHinanden.Api.Models.Task", "Task")
-                        .WithMany("TaskOffers")
+                        .WithMany("Offers")
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -436,9 +297,9 @@ namespace ForHinanden.Api.Migrations
 
             modelBuilder.Entity("ForHinanden.Api.Models.Task", b =>
                 {
-                    b.Navigation("TaskCategories");
+                    b.Navigation("Offers");
 
-                    b.Navigation("TaskOffers");
+                    b.Navigation("TaskCategories");
                 });
 #pragma warning restore 612, 618
         }

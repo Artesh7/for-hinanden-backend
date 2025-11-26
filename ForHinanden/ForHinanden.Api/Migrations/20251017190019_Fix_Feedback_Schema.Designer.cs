@@ -3,6 +3,7 @@ using System;
 using ForHinanden.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ForHinanden.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251017190019_Fix_Feedback_Schema")]
+    partial class Fix_Feedback_Schema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -94,13 +97,7 @@ namespace ForHinanden.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("EmojiLabel")
-                        .HasColumnType("text");
-
                     b.Property<string>("FeedbackText")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ImprovementText")
                         .HasColumnType("text");
 
                     b.Property<int>("Rating")
@@ -109,47 +106,12 @@ namespace ForHinanden.Api.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("VolunteerOpinion")
-                        .HasColumnType("text");
-
                     b.HasKey("Id");
 
                     b.HasIndex("DeviceId")
                         .IsUnique();
 
                     b.ToTable("Feedback");
-                });
-
-            modelBuilder.Entity("ForHinanden.Api.Models.HelpRelation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("UserA")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("UserB")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TaskId", "UserA", "UserB")
-                        .IsUnique();
-
-                    b.HasIndex("UserA", "UserB");
-
-                    b.ToTable("HelpRelations");
                 });
 
             modelBuilder.Entity("ForHinanden.Api.Models.Message", b =>
@@ -351,9 +313,6 @@ namespace ForHinanden.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsAnonymous")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -426,7 +385,7 @@ namespace ForHinanden.Api.Migrations
             modelBuilder.Entity("ForHinanden.Api.Models.TaskOffer", b =>
                 {
                     b.HasOne("ForHinanden.Api.Models.Task", "Task")
-                        .WithMany("TaskOffers")
+                        .WithMany()
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -437,8 +396,6 @@ namespace ForHinanden.Api.Migrations
             modelBuilder.Entity("ForHinanden.Api.Models.Task", b =>
                 {
                     b.Navigation("TaskCategories");
-
-                    b.Navigation("TaskOffers");
                 });
 #pragma warning restore 612, 618
         }
