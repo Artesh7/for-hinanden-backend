@@ -3,11 +3,11 @@ on:
 push:
  branches:
   - main
-  - staging
+  - stage
 pull_request:
  branches:
   - main
-  - staging
+  - stage
 
 jobs:
 build-and-test:
