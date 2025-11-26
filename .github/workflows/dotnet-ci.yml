@@ -1,32 +1,33 @@
 name: .NET Backend CI
+
 on:
-push:
- branches:
-  - main
-  - staging
-pull_request:
- branches:
-  - main
-  - staging
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    branches:
+      - main
+      - staging
 
 jobs:
-build-and-test:
-runs-on: ubuntu-latest
+  build-and-test:
+    runs-on: ubuntu-latest
 
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  - name: Setup .NET
-    uses: actions/setup-dotnet@v4
-    with:
-      dotnet-version: 8.0.x
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
 
-  - name: Restore dependencies
-    run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-  - name: Build project
-    run: dotnet build ./ForHinanden.Api/ForHinanden.Api.csproj --configuration Release --no-restore
+      - name: Build project
+        run: dotnet build ./ForHinanden.Api/ForHinanden.Api.csproj --configuration Release --no-restore
 
-  - name: Run tests
-    run: dotnet test ./Test/Test.csproj --no-build --verbosity normal
+      - name: Run tests
+        run: dotnet test ./Test/Test.csproj --no-build --verbosity normal
