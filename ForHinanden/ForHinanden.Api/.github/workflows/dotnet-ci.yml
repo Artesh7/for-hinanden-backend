@@ -24,10 +24,10 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Restore dependencies
-        run: dotnet restore ./ForHinanden.Api.csproj
+        run: dotnet restore ./ForHinanden.Api/ForHinanden.Api.csproj
 
       - name: Build project
-        run: dotnet build ./ForHinanden.Api.csproj --configuration Release --no-restore
+        run: dotnet build ./ForHinanden.Api/ForHinanden.Api.csproj --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test ./ForHinanden.Api.csproj --no-build --verbosity normal
+        run: dotnet test ./ForHinanden.Api/ForHinanden.Api.csproj --no-build --verbosity normal
