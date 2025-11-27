@@ -26,8 +26,8 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore ./ForHinanden.Api/ForHinanden.Api.csproj
 
-      - name: Build project
-        run: dotnet build ./ForHinanden.Api/ForHinanden.Api.csproj --configuration Release --no-restore
+      - name: Build project (Debug)
+        run: dotnet build ./ForHinanden.Api/ForHinanden.Api.csproj --configuration Debug --no-restore
 
-      - name: Run tests
-        run: dotnet test ./ForHinanden.Api/ForHinanden.Api.csproj --no-build --verbosity normal
+      - name: Run tests (Debug)
+        run: dotnet test ./ForHinanden.Api/ForHinanden.Api.csproj --configuration Debug --no-build --verbosity normal
