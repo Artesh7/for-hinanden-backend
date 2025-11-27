@@ -21,15 +21,13 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: 8.0.x
 
       - name: Restore dependencies
-        run: |
-          dotnet restore ./ForHinanden.Api/ForHinanden.Api.csproj
-          dotnet restore ./Test/Test.csproj
+        run: dotnet restore ./ForHinanden.Api.csproj
 
-      - name: Build backend
-        run: dotnet build ./ForHinanden.Api/ForHinanden.Api.csproj --configuration Release --no-restore
+      - name: Build project
+        run: dotnet build ./ForHinanden.Api.csproj --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test ./Test/Test.csproj --no-build --verbosity normal
+        run: dotnet test ./ForHinanden.Api.csproj --no-build --verbosity normal
