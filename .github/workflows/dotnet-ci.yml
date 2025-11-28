@@ -1,0 +1,34 @@
+name: .NET Backend CI
+
+on:
+  push:
+    branches:
+      - main
+      - stage
+  pull_request:
+    branches:
+      - main
+      - stage
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore ForHinanden.sln
+
+      - name: Build solution
+        run: dotnet build ForHinanden.sln --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test ./Test/Test.csproj --no-build --verbosity normal
+#sdk: .NET
