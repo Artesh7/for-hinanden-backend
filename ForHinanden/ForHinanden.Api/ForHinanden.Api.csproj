@@ -26,8 +26,4 @@
     <Folder Include="Application\Users\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include=".github\workflows\dotnet-ci.yml" />
-  </ItemGroup>
-
 </Project>
