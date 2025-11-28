@@ -2,32 +2,32 @@ name: .NET Backend CI
 
 on:
   push:
-    branches:
-      - main
-      - stage
+    branches: [main, stage]
   pull_request:
-    branches:
-      - main
-      - stage
+    branches: [main, stage]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      # 👇 Install .NET 9 for build
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
 
-      - name: Restore dependencies
+      - name: Restore solution
         run: dotnet restore ForHinanden/ForHinanden.sln
 
       - name: Build solution
         run: dotnet build ForHinanden/ForHinanden.sln --configuration Release --no-restore
 
+      # 👇 Install .NET 8 for testing
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
       - name: Run tests
-        run: dotnet test ForHinanden/Test/Test.csproj --no-build --verbosity normal --logger "console;verbosity=detailed"
+        run: dotnet test ForHinanden/Test/Test.csproj --verbosity normal
