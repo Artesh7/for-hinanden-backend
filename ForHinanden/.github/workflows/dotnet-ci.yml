@@ -31,4 +31,4 @@ jobs:
 
       - name: Run tests
         run: dotnet test ./Test/Test.csproj --no-build --verbosity normal
-#sdk: .NET 9.0.100
+#sdk: .NET
